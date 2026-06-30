@@ -104,7 +104,7 @@ def process_document_version(self, document_version_id: int):
             try:
                 raise self.retry(exc=err)
             except MaxRetriesExceededError:
-                _delete_local_file(document_version.id)
+                _delete_local_file(document_version.file_path)
                 raise
 
 

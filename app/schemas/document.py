@@ -22,11 +22,17 @@ class DocumentVersionRead(SQLModel):
     mime_type: str
     uploaded_by: str
     uploaded_at: datetime
-    task_id: str
+    task_id: str | None = None
     qdrant_point_ids: list[int] | None
     attempts: int
     error_message: str | None
     status: str
+
+
+class DocumentVersionTaskRead(SQLModel):
+    task_id: int
+    status: int
+    result: str | None
 
 
 class DocumentCreate(SQLModel):

@@ -35,6 +35,21 @@ async def get_document(
 
     return document
 
+@router.get(
+"/tasks/{task_id}",
+    tags=["documents"],
+    response_model=DocumentSchema.DocumentVersionTaskRead,
+    summary="Get document by id")
+async def get_task(
+    task_id: int,
+    celery_service = Depends(dependencies.get_celery_service)
+):
+    task = celery_service.get_task_status(task_id=task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    return task
+
 @router.post(
 "/",
     tags=["documents"],
@@ -75,12 +90,21 @@ async def upload_document_version(
         document_version=payload,
         session=session
     )
-    task_id = celery_service.update_document_version(document_version_id=document_version.id)
-    document_version = sql_service.set_document_version_task_id(
-        document_version_id=document_version.id,
-        task_id=task_id,
-        session=session
-    )
+
+    try:
+        task_id = celery_service.update_document_version(document_version_id=document_version.id)
+        document_version = sql_service.set_document_version_task_id(
+            document_version_id=document_version.id,
+            task_id=task_id,
+            session=session
+        )
+    except Exception as err:
+        document_version = sql_service.update_document_version_status(
+            document_version_id=document_version.id,
+            status="failed",
+            session=session,
+            error_message=f"No se pudo encolar la tarea de procesamiento: {err}",
+        )
 
     return document_version
 
