@@ -6,9 +6,7 @@ from openinference.instrumentation.llama_index import LlamaIndexInstrumentor
 from sqlmodel import SQLModel
 
 from app.config.log import setup_logging
-from app.services.qdrant_service import QdrantService
-from app.services.sql_service import SqlService
-from app.services.redis_service import RedisService
+import app.services as services
 from app.routers import collection, document
 from app.database import engine
 
@@ -23,9 +21,10 @@ async def lifespan(app: FastAPI):
     LlamaIndexInstrumentor().instrument()
     SQLModel.metadata.create_all(engine)
 
-    app.state.qdrant_service = QdrantService()
-    app.state.sql_service = SqlService()
-    app.state.redis_service = RedisService()
+    app.state.qdrant_service = services.QdrantService()
+    app.state.sql_service = services.SqlService()
+    app.state.redis_service = services.RedisService()
+    app.state.celery_service = services.CeleryService()
 
     yield
     await app.state.qdrant_service.close()

@@ -68,7 +68,10 @@ class QdrantService:
             self.logger.exception(e)
             raise
 
-    async def get_vector_store(self, collection_name: str):
+    async def get_vector_store(self, collection_name: str) -> QdrantVectorStore:
+        if not await self.collection_exists(collection_name):
+            raise ValueError(f"Collection {collection_name} not exists")
+
         return QdrantVectorStore(
             client=self._qdrant_client,
             aclient=self._qdrant_aclient,
@@ -125,6 +128,19 @@ class QdrantService:
         self.logger.info(f"Collection {collection_name} deleted")
 
         return True
+
+    async def delete_points(self, collection_name: str, point_ids: list[int]):
+        self.logger.info(f"Deleting {len(point_ids)} points from {collection_name}")
+
+        try:
+            await self._qdrant_aclient.delete(
+                collection_name=collection_name,
+                points_selector=point_ids
+            )
+        except Exception as e:
+            self.logger.error(f"Error deleting points from {collection_name}")
+            self.logger.exception(e)
+            raise
 
     async def close(self):
         try:

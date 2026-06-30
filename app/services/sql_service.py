@@ -32,6 +32,19 @@ class SqlService:
             self.logger.exception(e)
             raise
 
+    def get_document_version(self, document_version_id: int, session: Session):
+        try:
+            document_version = session.exec(
+                select(DocumentVersionDB)
+                .options(selectinload(DocumentVersionDB.document))
+                .where(DocumentVersionDB.id == document_version_id)
+            ).first()
+            return document_version
+        except Exception as e:
+            self.logger.error("Error fetching document version from database")
+            self.logger.exception(e)
+            raise
+
     def add_document(self, document: DocumentCreate, session: Session):
         try:
             document: DocumentDB = DocumentDB(**document.model_dump())
@@ -50,11 +63,11 @@ class SqlService:
         try:
             document_version: DocumentVersionDB = DocumentVersionDB(
                 document_id=document_id,
+                filename="", #TODO Ver como hacemos esto añadiendole un hash
                 original_filename=document_version.filename,
-                file_path=document_version.save_file_path,
+                file_path=document_version.saved_file_path,
                 file_size=document_version.file_size,
-                mime_type=document_version.mime_type,
-                **document_version.model_dump()
+                mime_type=document_version.mime_type
             )
 
             session.add(document_version)
@@ -66,6 +79,37 @@ class SqlService:
 
         except Exception as e:
             self.logger.error("Error adding document version to database")
+            self.logger.exception(e)
+            raise
+
+    def update_document_version_status(
+        self,
+        document_version_id: int,
+        status: str,
+        session: Session,
+        qdrant_point_ids: list[int] | None = None,
+        error_message: str | None = None,
+        increment_attempts: bool = False,
+    ):
+        try:
+            document_version = self.get_document_version(document_version_id, session)
+            if not document_version:
+                return None
+
+            document_version.status = status
+            document_version.error_message = error_message
+            if qdrant_point_ids is not None:
+                document_version.qdrant_point_ids = qdrant_point_ids
+            if increment_attempts:
+                document_version.attempts += 1
+
+            session.commit()
+            session.refresh(document_version)
+
+            self.logger.info(f"Document version {document_version_id} updated to status={status}")
+            return document_version
+        except Exception as e:
+            self.logger.error(f"Error updating document version {document_version_id} status")
             self.logger.exception(e)
             raise
 

@@ -14,8 +14,8 @@ router = APIRouter()
     response_model=list[DocumentSchema.DocumentRead],
     summary="Get all documents")
 async def get_documents(
-        session: Session = Depends(get_session),
-        sql_service = Depends(dependencies.get_sql_service)
+    session: Session = Depends(get_session),
+    sql_service = Depends(dependencies.get_sql_service)
 ):
     return sql_service.get_documents(session)
 
@@ -25,9 +25,9 @@ async def get_documents(
     response_model=DocumentSchema.DocumentRead,
     summary="Get document by id")
 async def get_document(
-        document_id: int,
-        session: Session = Depends(get_session),
-        sql_service = Depends(dependencies.get_sql_service)
+    document_id: int,
+    session: Session = Depends(get_session),
+    sql_service = Depends(dependencies.get_sql_service)
 ):
     document = sql_service.get_document(document_id, session)
     if not document:
@@ -42,9 +42,9 @@ async def get_document(
     status_code=status.HTTP_201_CREATED,
     summary="Upload document")
 async def upload_document(
-        payload: DocumentSchema.DocumentCreate,
-        session: Session = Depends(get_session),
-        sql_service = Depends(dependencies.get_sql_service)
+    payload: DocumentSchema.DocumentCreate,
+    session: Session = Depends(get_session),
+    sql_service = Depends(dependencies.get_sql_service)
 ):
     document = sql_service.add_document(payload, session)
     return document
@@ -55,12 +55,13 @@ async def upload_document(
     response_model=DocumentSchema.DocumentVersionRead,
     summary="Upload document version")
 async def upload_document_version(
-        document_id: int,
-        file: UploadFile = File(...),
-        uploaded_by: str = Form(None),
-        session: Session = Depends(get_session),
-        sql_service = Depends(dependencies.get_sql_service),
-        redis_service = Depends(dependencies.get_redis_service)
+    document_id: int,
+    file: UploadFile = File(...),
+    uploaded_by: str = Form(None),
+    session: Session = Depends(get_session),
+    sql_service = Depends(dependencies.get_sql_service),
+    redis_service = Depends(dependencies.get_redis_service),
+    celery_service = Depends(dependencies.get_celery_service)
 ):
     payload = DocumentSchema.DocumentVersionCreate(
         saved_file_path=await util.save_document_version_file(file=file),
@@ -71,7 +72,7 @@ async def upload_document_version(
     )
     document_version = sql_service.add_document_version(document_id, payload, session)
     redis_service.add_document_version(document_version)
-    #TODO LLamar al worker de Celeri
+    task_id = celery_service.update_document_version(document_version.id)
     return document_version
 
 @router.delete(
@@ -80,13 +81,18 @@ async def upload_document_version(
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete document")
 async def delete_document(
-        document_id: int,
-        payload: DocumentSchema.DocumentDelete,
-        session: Session = Depends(get_session),
-        sql_service = Depends(dependencies.get_sql_service),
-        redis_service = Depends(dependencies.get_redis_service)
+    document_id: int,
+    payload: DocumentSchema.DocumentDelete,
+    session: Session = Depends(get_session),
+    sql_service = Depends(dependencies.get_sql_service),
+    qdrant_service = Depends(dependencies.get_qdrant_service),
 ):
-    if sql_service.delete_document(document_id, payload, session) is None:
+    document = sql_service.get_document(document_id, session)
+    if not document:
         raise HTTPException(status_code=404, detail="Document not found")
 
-    #redis_service.delete_document(document_id)
+    active_version = document.documents_versions[-1] if document.documents_versions else None
+    if active_version and active_version.qdrant_point_ids:
+        await qdrant_service.delete_points(document.collection, active_version.qdrant_point_ids)
+
+    sql_service.delete_document(document_id, payload, session)

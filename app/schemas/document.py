@@ -35,7 +35,7 @@ class DocumentCreate(SQLModel):
 
 
 class DocumentVersionCreate(SQLModel):
-    save_file_path: str
+    saved_file_path: str
     filename: str
     uploaded_by: str
     file_size: int
