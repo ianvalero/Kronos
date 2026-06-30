@@ -12,7 +12,8 @@ class DocumentDB(SQLModel, table=True):
     deleted_at: datetime | None = None
     deleted_by: str | None = None
     documents_versions: list["DocumentVersionDB"] = Relationship(
-        back_populates="document"
+        back_populates="document",
+        sa_relationship_kwargs={"order_by": "DocumentVersionDB.id.desc()"}
     )
 
 
@@ -28,6 +29,7 @@ class DocumentVersionDB(SQLModel, table=True):
     mime_type: str
     uploaded_by: str
     uploaded_at: datetime = Field(default_factory=datetime.now)
+    task_id: str | None = Field(default=None, index=True)
     qdrant_point_ids: list[int] | None = Field(
         default=None,
         sa_column=Column(ARRAY(Integer))

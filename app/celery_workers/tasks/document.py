@@ -1,8 +1,8 @@
-from __future__ import annotations
-from typing import TYPE_CHECKING
 import logging
 import asyncio
+import os
 
+from celery.exceptions import MaxRetriesExceededError
 from celery.signals import worker_process_init
 from llama_index.core.node_parser import SentenceSplitter
 from llama_index.core import SimpleDirectoryReader
@@ -12,13 +12,10 @@ from llama_index.core.schema import MetadataMode
 from sqlmodel import Session
 
 from app.config.settings import settings
+from app.services.qdrant_service import QdrantService
+from app.services.sql_service import SqlService
 from app.celery_workers.celery_app import celery_app
 from app.database import engine
-
-if TYPE_CHECKING:
-    from app.services.qdrant_service import QdrantService
-    from app.services.sql_service import SqlService
-
 
 logger = logging.getLogger(f"app.{__name__}")
 
@@ -87,6 +84,8 @@ def process_document_version(self, document_version_id: int):
             )
 
             logger.info(f"Document version {document_version.id} processed: {len(point_ids)} points")
+            _delete_local_file(file_path=document_version.file_path)
+
             return {"document_version_id": document_version.id, "points_count": len(point_ids)}
 
         except Exception as err:
@@ -101,7 +100,12 @@ def process_document_version(self, document_version_id: int):
             )
 
             self.update_state(state="FAILURE", meta={"error": str(err)})
-            raise self.retry(exc=err)
+
+            try:
+                raise self.retry(exc=err)
+            except MaxRetriesExceededError:
+                _delete_local_file(document_version.id)
+                raise
 
 
 async def _embed_and_upload(file_path: str, collection_name: str, document_version_id: int) -> list[int]:
@@ -129,3 +133,14 @@ async def _embed_and_upload(file_path: str, collection_name: str, document_versi
     point_ids = await vector_store.async_add(nodes)
 
     return [int(pid) for pid in point_ids]
+
+
+def _delete_local_file(file_path: str):
+    try:
+        if file_path and os.path.exists(file_path):
+            os.remove(file_path)
+            logger.info(f"Local file deleted: {file_path}")
+    except Exception as e:
+        # No queremos que un fallo al borrar el fichero tumbe la task
+        logger.error(f"Error deleting local file {file_path}")
+        logger.exception(e)

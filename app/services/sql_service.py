@@ -63,11 +63,12 @@ class SqlService:
         try:
             document_version: DocumentVersionDB = DocumentVersionDB(
                 document_id=document_id,
-                filename="", #TODO Ver como hacemos esto añadiendole un hash
+                filename=Path(document_version.saved_file_path).name,
                 original_filename=document_version.filename,
                 file_path=document_version.saved_file_path,
                 file_size=document_version.file_size,
-                mime_type=document_version.mime_type
+                mime_type=document_version.mime_type,
+                uploaded_by=document_version.uploaded_by,
             )
 
             session.add(document_version)
@@ -79,6 +80,23 @@ class SqlService:
 
         except Exception as e:
             self.logger.error("Error adding document version to database")
+            self.logger.exception(e)
+            raise
+
+    def set_document_version_task_id(self, document_version_id: int, task_id: str, session: Session):
+        try:
+            document_version = self.get_document_version(document_version_id, session)
+            if not document_version:
+                return None
+
+            document_version.task_id = task_id
+            session.commit()
+            session.refresh(document_version)
+
+            self.logger.info(f"Document version {document_version_id} linked to task {task_id}")
+            return document_version
+        except Exception as e:
+            self.logger.error(f"Error setting task_id for document version {document_version_id}")
             self.logger.exception(e)
             raise
 

@@ -60,7 +60,6 @@ async def upload_document_version(
     uploaded_by: str = Form(None),
     session: Session = Depends(get_session),
     sql_service = Depends(dependencies.get_sql_service),
-    redis_service = Depends(dependencies.get_redis_service),
     celery_service = Depends(dependencies.get_celery_service)
 ):
     payload = DocumentSchema.DocumentVersionCreate(
@@ -70,9 +69,19 @@ async def upload_document_version(
         file_size=file.size,
         mime_type=file.content_type
     )
-    document_version = sql_service.add_document_version(document_id, payload, session)
-    redis_service.add_document_version(document_version)
-    task_id = celery_service.update_document_version(document_version.id)
+
+    document_version = sql_service.add_document_version(
+        document_id=document_id,
+        document_version=payload,
+        session=session
+    )
+    task_id = celery_service.update_document_version(document_version_id=document_version.id)
+    document_version = sql_service.set_document_version_task_id(
+        document_version_id=document_version.id,
+        task_id=task_id,
+        session=session
+    )
+
     return document_version
 
 @router.delete(
@@ -91,7 +100,7 @@ async def delete_document(
     if not document:
         raise HTTPException(status_code=404, detail="Document not found")
 
-    active_version = document.documents_versions[-1] if document.documents_versions else None
+    active_version = document.documents_versions[0] if document.documents_versions else None
     if active_version and active_version.qdrant_point_ids:
         await qdrant_service.delete_points(document.collection, active_version.qdrant_point_ids)
 
