@@ -1,14 +1,11 @@
 import logging
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
-
 from openinference.instrumentation.llama_index import LlamaIndexInstrumentor
-from sqlmodel import SQLModel
 
 from app.config.log import setup_logging
 import app.services as services
 from app.routers import collection, document
-from app.database import engine
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +16,6 @@ async def lifespan(app: FastAPI):
     logger.info("Starting application")
 
     LlamaIndexInstrumentor().instrument()
-    SQLModel.metadata.create_all(engine)
 
     app.state.qdrant_service = services.QdrantService()
     app.state.sql_service = services.SqlService()

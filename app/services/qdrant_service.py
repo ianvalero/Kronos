@@ -2,7 +2,7 @@ import asyncio
 import logging
 from llama_index.vector_stores.qdrant import QdrantVectorStore
 from qdrant_client import AsyncQdrantClient, QdrantClient
-from qdrant_client.http.models import VectorParams, Distance, HnswConfigDiff
+from qdrant_client.http.models import VectorParams, Distance, HnswConfigDiff, PointIdsList
 
 from app.config.settings import settings
 from app.schemas.collection import CollectionCreate
@@ -135,7 +135,7 @@ class QdrantService:
         try:
             await self._qdrant_aclient.delete(
                 collection_name=collection_name,
-                points_selector=point_ids
+                points_selector=PointIdsList(points=point_ids)
             )
         except Exception as e:
             self.logger.error(f"Error deleting points from {collection_name}")

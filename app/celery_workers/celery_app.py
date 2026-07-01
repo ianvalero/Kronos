@@ -14,6 +14,4 @@ celery_app.config_from_object({
     "accept_content": ["json"],
 })
 
-celery_app.autodiscover_tasks([
-    "app.celery_workers.tasks"
-])
+import app.celery_workers.tasks.document
