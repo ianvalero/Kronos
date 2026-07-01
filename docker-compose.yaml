@@ -53,9 +53,50 @@ services:
       - ia_ai-network
     command: redis-server --appendonly yes --save "" ${REDIS_PASSWORD:+--requirepass $REDIS_PASSWORD}
 
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: qdrant
+    restart: unless-stopped
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    networks:
+      - ia_ai-network
+    environment:
+      - QDRANT__STORAGE__STORAGE_PATH=/qdrant/storage
+
+  celery-worker:
+    build:
+      context: .
+      args:
+        HTTP_PROXY: http://10.49.1.1:8080
+        HTTPS_PROXY: http://10.49.1.1:8080
+    container_name: kronos-celery-worker
+    env_file:
+      - .env
+    environment:
+      HTTP_PROXY: http://10.49.1.1:8080
+      HTTPS_PROXY: http://10.49.1.1:8080
+      NO_PROXY: vllm,librechat,qdrant,mongodb,langfuse-web,langfuse-worker,langfuse-postgres,langfuse-clickhouse,langfuse-redis,langfuse-minio,localhost,127.0.0.1
+      http_proxy: http://10.49.1.1:8080
+      https_proxy: http://10.49.1.1:8080
+      no_proxy: vllm,librechat,qdrant,mongodb,langfuse-web,langfuse-worker,langfuse-postgres,langfuse-clickhouse,langfuse-redis,langfuse-minio,localhost,127.0.0.1
+    networks:
+      - ia_ai-network
+    volumes:
+      - .:/app
+    depends_on:
+      - postgres
+      - redis
+    command: celery -A app.celery_workers.celery_app worker --loglevel=info
+    restart: unless-stopped
+
 volumes:
   postgres_data:
   redis_data:
+  qdrant_data:
 
 networks:
   ia_ai-network:
