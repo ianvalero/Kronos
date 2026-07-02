@@ -1,9 +1,7 @@
 import logging
 from celery.result import AsyncResult
 
-from app.models.document import DocumentVersionDB
 from app.celery_workers.celery_app import celery_app
-from app.celery_workers.tasks.document import process_document_version
 
 
 class CeleryService:
@@ -58,7 +56,10 @@ class CeleryService:
         """
         self.logger.info(f"Updating document version {document_version_id} in Celery task")
         try:
-            task = process_document_version.delay(document_version_id=document_version_id)
+            task = celery_app.send_task(
+                "tasks.process_document_version",
+                kwargs={"document_version_id": document_version_id}
+            )
             self.logger.info(f"Document version {document_version_id} update task sent to Celery successfully")
             return task.id
         except Exception as e:
