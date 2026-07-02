@@ -5,7 +5,7 @@ services:
   gulax-api:
     image: ${NEXUS_REGISTRY}/gulax-api:latest
     ports:
-      - "9060:8000"
+      - "9060:9010"
     networks:
       - ia_ai-network
     depends_on:

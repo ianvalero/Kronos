@@ -1,5 +1,7 @@
 FROM python:3.11-slim
 
+WORKDIR /app
+
 ARG HTTP_PROXY
 ARG HTTPS_PROXY
 
@@ -10,17 +12,13 @@ ENV HTTP_PROXY=$HTTP_PROXY \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
 
-WORKDIR /app
-
-# Instalar dependencias
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copiar código
-COPY . .
+COPY app ./app
+COPY migrations ./migrations
+COPY alembic.ini .
 
-# Exponer puerto
-EXPOSE 8000
+EXPOSE 9010
 
-# Comando para arrancar FastAPI con uvicorn
-CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "9010", "--workers", "4", "--loop", "uvloop"]
