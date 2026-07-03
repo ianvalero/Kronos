@@ -1,34 +1,47 @@
-import logging
 import asyncio
+import logging
 import os
 
 from celery.exceptions import MaxRetriesExceededError
-from celery.signals import worker_process_init
-from llama_index.core.node_parser import SentenceSplitter
+from celery.signals import worker_process_init, worker_process_shutdown
 from llama_index.core import SimpleDirectoryReader
-from llama_index.embeddings.openai import OpenAIEmbedding
-
+from llama_index.core.node_parser import SentenceSplitter
 from llama_index.core.schema import MetadataMode
+from llama_index.embeddings.openai import OpenAIEmbedding
 from sqlmodel import Session
 
+from app.celery_workers.celery_app import celery_app
 from app.config.settings import settings
+from app.database import engine
 from app.services.qdrant_service import QdrantService
 from app.services.sql_service import SqlService
-from app.celery_workers.celery_app import celery_app
-from app.database import engine
 
 logger = logging.getLogger(f"app.{__name__}")
 
 qdrant_service: QdrantService | None = None
 sql_service: SqlService | None = None
 embedding_model: OpenAIEmbedding | None = None
+worker_loop: asyncio.AbstractEventLoop | None = None
+
 
 @worker_process_init.connect
 def init_worker_connections(**kwargs):
-    """Se ejecuta una vez por proceso worker, no por tarea, para reutilizar conexiones."""
-    global qdrant_service, sql_service, embedding_model
+    """
+    Se ejecuta una vez por proceso worker, no por tarea.
+
+    Crea un event loop persistente para todo el ciclo de vida del proceso y
+    los clientes async quedan ligados a ese único loop, evitando el error
+    'Event loop is closed' que ocurre al mezclar clientes async creados en
+    un loop con llamadas posteriores en otro loop distinto (p. ej. con
+    asyncio.run() en cada tarea).
+    """
+    global qdrant_service, sql_service, embedding_model, worker_loop
 
     logger.info("Starting worker process. Initializing connections...")
+
+    worker_loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(worker_loop)
+
     qdrant_service = QdrantService()
     sql_service = SqlService()
     embedding_model = OpenAIEmbedding(
@@ -39,11 +52,26 @@ def init_worker_connections(**kwargs):
     )
 
 
+@worker_process_shutdown.connect
+def shutdown_worker_connections(**kwargs):
+    """Cierra limpiamente el event loop al terminar el proceso worker."""
+    global worker_loop
+
+    if worker_loop is not None and not worker_loop.is_closed():
+        logger.info("Shutting down worker process. Closing event loop...")
+        worker_loop.close()
+
+
+def run_async(coro):
+    """Ejecuta una corrutina en el event loop persistente del worker."""
+    return worker_loop.run_until_complete(coro)
+
+
 @celery_app.task(
     bind=True,
     max_retries=3,
     default_retry_delay=60,
-    name="tasks.process_document_version"
+    name="tasks.process_document_version",
 )
 def process_document_version(self, document_version_id: int):
     with Session(engine) as session:
@@ -58,29 +86,31 @@ def process_document_version(self, document_version_id: int):
             sql_service.update_document_version_status(
                 document_version_id=document_version_id,
                 status="processing",
-                session=session
+                session=session,
             )
 
             self.update_state(
                 state="PROGRESS",
-                meta={"step": "reading", "document_id": document_version.document_id}
+                meta={"step": "reading", "document_id": document_version.document_id},
             )
             logger.info(f"Processing document version: {document_version.id} - {document_version.filename}")
 
-            if not asyncio.run(qdrant_service.collection_exists(collection_name)):
+            if not run_async(qdrant_service.collection_exists(collection_name)):
                 raise ValueError(f"Collection {collection_name} not found")
 
-            point_ids = asyncio.run(_embed_and_upload(
-                file_path=document_version.file_path,
-                collection_name=collection_name,
-                document_version_id=document_version.id,
-            ))
+            point_ids = run_async(
+                _embed_and_upload(
+                    file_path=document_version.file_path,
+                    collection_name=collection_name,
+                    document_version_id=document_version.id,
+                )
+            )
 
             sql_service.update_document_version_status(
                 document_version_id=document_version_id,
                 status="completed",
                 session=session,
-                qdrant_point_ids=point_ids
+                qdrant_point_ids=point_ids,
             )
 
             logger.info(f"Document version {document_version.id} processed: {len(point_ids)} points")
@@ -96,10 +126,8 @@ def process_document_version(self, document_version_id: int):
                 status="failed",
                 session=session,
                 error_message=str(err),
-                increment_attempts=True
+                increment_attempts=True,
             )
-
-            self.update_state(state="FAILURE", meta={"error": str(err)})
 
             try:
                 raise self.retry(exc=err)
@@ -108,11 +136,14 @@ def process_document_version(self, document_version_id: int):
                 raise
 
 
-async def _embed_and_upload(file_path: str, collection_name: str, document_version_id: int) -> list[int]:
+async def _embed_and_upload(file_path: str, collection_name: str, document_version_id: int) -> list[str]:
     # 1. Leer el fichero y partirlo en nodos (chunks)
     documents = SimpleDirectoryReader(input_files=[file_path]).load_data()
 
-    splitter = SentenceSplitter(chunk_size=512, chunk_overlap=50)
+    splitter = SentenceSplitter(
+        chunk_size=settings.embedding_chunk_size,
+        chunk_overlap=settings.embedding_chunk_overlap,
+    )
     nodes = splitter.get_nodes_from_documents(documents)
 
     if not nodes:
@@ -121,7 +152,7 @@ async def _embed_and_upload(file_path: str, collection_name: str, document_versi
     for node in nodes:
         node.metadata["document_version_id"] = document_version_id
 
-    # 2. Generar embeddings para cada nodo (en batch, usando el modelo del servidor Spark)
+    # 2. Generar embeddings para cada nodo (en batch)
     texts = [node.get_content(metadata_mode=MetadataMode.EMBED) for node in nodes]
     embeddings = await embedding_model.aget_text_embedding_batch(texts)
 
@@ -132,7 +163,7 @@ async def _embed_and_upload(file_path: str, collection_name: str, document_versi
     vector_store = await qdrant_service.get_vector_store(collection_name)
     point_ids = await vector_store.async_add(nodes)
 
-    return [int(pid) for pid in point_ids]
+    return [str(pid) for pid in point_ids]
 
 
 def _delete_local_file(file_path: str):

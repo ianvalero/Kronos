@@ -41,7 +41,7 @@ async def get_document(
     response_model=DocumentSchema.DocumentVersionTaskRead,
     summary="Get document by id")
 async def get_task(
-    task_id: int,
+    task_id: str,
     celery_service = Depends(dependencies.get_celery_service)
 ):
     task = celery_service.get_task_status(task_id=task_id)

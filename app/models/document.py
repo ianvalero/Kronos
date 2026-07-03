@@ -1,4 +1,4 @@
-from sqlalchemy import Integer, ARRAY, Column
+from sqlalchemy import ARRAY, Column, String
 from sqlmodel import SQLModel, Field, Relationship
 from datetime import datetime
 
@@ -30,9 +30,9 @@ class DocumentVersionDB(SQLModel, table=True):
     uploaded_by: str
     uploaded_at: datetime = Field(default_factory=datetime.now)
     task_id: str | None = Field(default=None, index=True)
-    qdrant_point_ids: list[int] | None = Field(
+    qdrant_point_ids: list[str] | None = Field(
         default=None,
-        sa_column=Column(ARRAY(Integer))
+        sa_column=Column(ARRAY(String))
     )
     attempts: int = 0
     error_message: str | None = None

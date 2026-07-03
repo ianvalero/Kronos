@@ -105,7 +105,7 @@ class SqlService:
         document_version_id: int,
         status: str,
         session: Session,
-        qdrant_point_ids: list[int] | None = None,
+        qdrant_point_ids: list[str] | None = None,
         error_message: str | None = None,
         increment_attempts: bool = False,
     ):

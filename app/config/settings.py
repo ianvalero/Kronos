@@ -44,6 +44,8 @@ class Settings(BaseSettings):
     postgresql_url: str
     embedding_model_name: str
     embedding_base_url: str
+    embedding_chunk_size: int
+    embedding_chunk_overlap: int
     files_storage_path: str = "files/"
 
     redis: RedisSettings = Field(default_factory=RedisSettings)

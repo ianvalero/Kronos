@@ -1,5 +1,6 @@
 from datetime import datetime
 from sqlmodel import SQLModel
+from typing import Any
 
 class DocumentRead(SQLModel):
     id: int
@@ -23,16 +24,16 @@ class DocumentVersionRead(SQLModel):
     uploaded_by: str
     uploaded_at: datetime
     task_id: str | None = None
-    qdrant_point_ids: list[int] | None
+    qdrant_point_ids: list[str] | None
     attempts: int
     error_message: str | None
     status: str
 
 
 class DocumentVersionTaskRead(SQLModel):
-    task_id: int
-    status: int
-    result: str | None
+    task_id: str
+    status: str
+    result: Any | None = None
 
 
 class DocumentCreate(SQLModel):
