@@ -59,8 +59,12 @@ async def get_task(
 async def upload_document(
     payload: DocumentSchema.DocumentCreate,
     session: Session = Depends(get_session),
-    sql_service = Depends(dependencies.get_sql_service)
+    sql_service = Depends(dependencies.get_sql_service),
+    qdrant_service = Depends(dependencies.get_qdrant_service),
 ):
+    if not qdrant_service.collection_exists(collection_name=payload.collection):
+        raise HTTPException(status_code=404, detail=f"Collection {payload.collection} not found")
+
     document = sql_service.add_document(payload, session)
     return document
 

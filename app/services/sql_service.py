@@ -14,7 +14,14 @@ class SqlService:
 
     def get_documents(self, session: Session):
         try:
-            return session.exec(select(DocumentDB).options(selectinload(DocumentDB.documents_versions))).all()
+            statement = (
+                select(DocumentDB)
+                .where(DocumentDB.deleted_at.is_(None))
+                .options(selectinload(
+                    DocumentDB.documents_versions.and_(DocumentVersionDB.status == "completed"))
+                )
+            )
+            return session.exec(statement).all()
         except Exception as e:
             self.logger.error("Error fetching documents from database")
             self.logger.exception(e)
@@ -22,14 +29,37 @@ class SqlService:
 
     def get_document(self, document_id: int, session: Session):
         try:
-            document = session.exec(
-                select(DocumentDB).options(selectinload(DocumentDB.documents_versions))
-                .where(DocumentDB.id == document_id)
-            ).first()
-            return document
-        except Exception as e:
-            self.logger.error("Error fetching document from database")
-            self.logger.exception(e)
+            statement = (
+                select(DocumentDB)
+                .options(selectinload(DocumentDB.documents_versions))
+                .where(
+                    DocumentDB.id == document_id,
+                    DocumentDB.deleted_at.is_(None)
+                )
+            )
+            return session.exec(statement).first()
+        except Exception:
+            self.logger.exception("Error fetching document from database")
+            raise
+
+    def get_document_completed_versions(
+            self,
+            document_id: int,
+            session: Session,
+    ) -> list[DocumentVersionDB]:
+        try:
+            statement = (
+                select(DocumentVersionDB)
+                .where(
+                    DocumentVersionDB.document_id == document_id,
+                    DocumentVersionDB.status == "completed",
+                )
+                .order_by(DocumentVersionDB.id.desc())
+            )
+            return session.exec(statement).all()
+
+        except Exception:
+            self.logger.exception(f"Error fetching completed versions for document {document_id}")
             raise
 
     def get_document_version(self, document_version_id: int, session: Session):

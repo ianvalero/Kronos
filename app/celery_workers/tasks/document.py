@@ -26,15 +26,6 @@ worker_loop: asyncio.AbstractEventLoop | None = None
 
 @worker_process_init.connect
 def init_worker_connections(**kwargs):
-    """
-    Se ejecuta una vez por proceso worker, no por tarea.
-
-    Crea un event loop persistente para todo el ciclo de vida del proceso y
-    los clientes async quedan ligados a ese único loop, evitando el error
-    'Event loop is closed' que ocurre al mezclar clientes async creados en
-    un loop con llamadas posteriores en otro loop distinto (p. ej. con
-    asyncio.run() en cada tarea).
-    """
     global qdrant_service, sql_service, embedding_model, worker_loop
 
     logger.info("Starting worker process. Initializing connections...")
@@ -54,7 +45,6 @@ def init_worker_connections(**kwargs):
 
 @worker_process_shutdown.connect
 def shutdown_worker_connections(**kwargs):
-    """Cierra limpiamente el event loop al terminar el proceso worker."""
     global worker_loop
 
     if worker_loop is not None and not worker_loop.is_closed():
@@ -63,7 +53,6 @@ def shutdown_worker_connections(**kwargs):
 
 
 def run_async(coro):
-    """Ejecuta una corrutina en el event loop persistente del worker."""
     return worker_loop.run_until_complete(coro)
 
 
@@ -112,10 +101,16 @@ def process_document_version(self, document_version_id: int):
                 session=session,
                 qdrant_point_ids=point_ids,
             )
-
             logger.info(f"Document version {document_version.id} processed: {len(point_ids)} points")
-            _delete_local_file(file_path=document_version.file_path)
 
+            _archive_previous_versions(
+                document_id=document_version.document_id,
+                current_version_id=document_version.id,
+                collection_name=collection_name,
+                session=session,
+            )
+
+            _delete_local_file(file_path=document_version.file_path)
             return {"document_version_id": document_version.id, "points_count": len(point_ids)}
 
         except Exception as err:
@@ -137,7 +132,6 @@ def process_document_version(self, document_version_id: int):
 
 
 async def _embed_and_upload(file_path: str, collection_name: str, document_version_id: int) -> list[str]:
-    # 1. Leer el fichero y partirlo en nodos (chunks)
     documents = SimpleDirectoryReader(input_files=[file_path]).load_data()
 
     splitter = SentenceSplitter(
@@ -152,26 +146,59 @@ async def _embed_and_upload(file_path: str, collection_name: str, document_versi
     for node in nodes:
         node.metadata["document_version_id"] = document_version_id
 
-    # 2. Generar embeddings para cada nodo (en batch)
     texts = [node.get_content(metadata_mode=MetadataMode.EMBED) for node in nodes]
     embeddings = await embedding_model.aget_text_embedding_batch(texts)
 
     for node, embedding in zip(nodes, embeddings):
         node.embedding = embedding
 
-    # 3. Subir los nodos (con sus embeddings) a Qdrant
     vector_store = await qdrant_service.get_vector_store(collection_name)
     point_ids = await vector_store.async_add(nodes)
 
     return [str(pid) for pid in point_ids]
 
 
-def _delete_local_file(file_path: str):
+def _delete_local_file(file_path: str) -> bool:
     try:
         if file_path and os.path.exists(file_path):
             os.remove(file_path)
             logger.info(f"Local file deleted: {file_path}")
-    except Exception as e:
-        # No queremos que un fallo al borrar el fichero tumbe la task
-        logger.error(f"Error deleting local file {file_path}")
-        logger.exception(e)
+        return True
+
+    except Exception:
+        logger.exception(f"Error deleting local file {file_path}")
+        return False
+
+
+def _archive_previous_versions(document_id: int, current_version_id: int, collection_name: str, session: Session) -> None:
+    completed_versions = sql_service.get_document_completed_versions(
+        document_id=document_id,
+        session=session,
+    )
+
+    previous_versions = [
+        version for version in completed_versions
+        if version.id != current_version_id
+    ]
+
+    for version in previous_versions:
+        if version.qdrant_point_ids:
+            try:
+                run_async(
+                    qdrant_service.delete_points(
+                        collection_name=collection_name,
+                        point_ids=version.qdrant_point_ids,
+                    )
+                )
+            except Exception:
+                logger.exception(f"Failed to delete Qdrant points for version {version.id}")
+                continue
+
+        sql_service.update_document_version_status(
+            document_version_id=version.id,
+            status="archived",
+            session=session,
+        )
+
+    if previous_versions:
+        logger.info(f"Archived {len(previous_versions)} previous version(s) of document {document_id}")
