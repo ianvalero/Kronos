@@ -5,7 +5,7 @@ from openinference.instrumentation.llama_index import LlamaIndexInstrumentor
 
 from app.config.log import setup_logging
 import app.services as services
-from app.routers import collection, document
+from app.routers import collection, document, auth
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +21,7 @@ async def lifespan(app: FastAPI):
     app.state.sql_service = services.SqlService()
     app.state.redis_service = services.RedisService()
     app.state.celery_service = services.CeleryService()
+    app.state.collection_service = services.CollectionService()
 
     yield
     await app.state.qdrant_service.close()
@@ -35,5 +36,6 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(collection.router, prefix="/api/collections", tags=["collections"])
 app.include_router(document.router, prefix="/api/documents", tags=["documents"])
