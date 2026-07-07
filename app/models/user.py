@@ -30,6 +30,11 @@ class UserDB(SQLModel, table=True):
     last_login: str | None = Field(default=None)
 
     groups: list["GroupDB"] = Relationship(back_populates="users", link_model=UserGroup)
+    role: "RoleDB" = Relationship()
+
+    @property
+    def is_admin(self) -> bool:
+        return self.role is not None and self.role.name == "admin"
 
 
 class GroupDB(SQLModel, table=True):

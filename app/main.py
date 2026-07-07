@@ -22,6 +22,7 @@ async def lifespan(app: FastAPI):
     app.state.redis_service = services.RedisService()
     app.state.celery_service = services.CeleryService()
     app.state.collection_service = services.CollectionService()
+    app.state.user_service = services.UserService()
 
     yield
     await app.state.qdrant_service.close()

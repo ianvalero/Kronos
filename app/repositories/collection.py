@@ -12,10 +12,28 @@ class CollectionRepository:
         )
         return session.exec(statement).all()
 
+    #TODO Revisar si esto es necesario
+    def get_collections_by_groups(self, session: Session, group_ids: list[int]) -> list[CollectionDB]:
+        if not group_ids:
+            return []
+        statement = (
+            select(CollectionDB)
+            .join(GroupCollection, GroupCollection.collection_id == CollectionDB.id)
+            .where(
+                CollectionDB.deleted_at.is_(None),
+                GroupCollection.group_id.in_(group_ids),
+            )
+            .distinct()
+        )
+        return session.exec(statement).all()
+
     def get_collection(self, session: Session, collection_id: int) -> CollectionDB | None:
         statement = (
             select(CollectionDB)
-            .where(CollectionDB.id == collection_id)
+            .where(
+                CollectionDB.id == collection_id,
+                CollectionDB.deleted_at.is_(None),
+            )
         )
         return session.exec(statement).first()
 

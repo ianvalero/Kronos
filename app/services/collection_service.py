@@ -1,5 +1,6 @@
 import logging
 import uuid
+
 from sqlmodel import Session
 
 from app.schemas.collection import CollectionCreate, CollectionCreateQdrant, HNSWConfig, Distance
@@ -16,9 +17,19 @@ class CollectionService:
         self.collection_repository = CollectionRepository()
         self.logger.info("Collection Service initialized")
 
-    async def get_collections(self, session: Session, qdrant: QdrantService) -> CollectionsResponse:
+    async def get_collections(
+        self,
+        session: Session,
+        qdrant: QdrantService,
+        current_user: "UserDB"
+    ) -> CollectionsResponse:
         try:
-            collections_db = self.collection_repository.get_collections(session=session)
+            if current_user.is_admin:
+                collections_db = self.collection_repository.get_collections(session=session)
+            else:
+                group_ids = [g.id for g in current_user.groups]
+                collections_db = self.collection_repository.get_collections_by_groups(session, group_ids)
+
             collections_qdrant = await qdrant.get_collections(
                 collection_names=[collection.qdrant_name for collection in collections_db]
             )
