@@ -4,6 +4,7 @@ from dateutil.relativedelta import relativedelta
 from sqlmodel import Session, select
 
 from app.models.user import UserDB
+from app.schemas.user import UserSSO
 
 
 class UserRepository:
@@ -22,16 +23,22 @@ class UserRepository:
         )
         return session.exec(statement).first()
 
-    def update_or_create_user(self, session: Session, sso_id: str, username: str, email: str, name: str, roles: list[str]) -> UserDB:
-        user = self.get_by_sso_id(session, sso_id)
+    def update_or_create_user(self, session: Session, user: UserSSO) -> UserDB:
+        user = self.get_by_sso_id(session, user.sso_id)
         if not user:
-            user = UserDB(sso_id=sso_id, username=username, name=name, email=email, roles=roles)
+            user = UserDB(
+                sso_id=user.sso_id,
+                username=user.username,
+                name=user.name,
+                email=user.email,
+                roles=user.roles
+            )
             session.add(user)
         else:
-            user.username = username
-            user.name = name
-            user.email = email
-            user.roles = roles
+            user.username = user.username
+            user.name = user.name
+            user.email = user.email
+            user.roles = user.roles
             user.is_active = True
 
         session.flush()

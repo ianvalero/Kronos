@@ -4,11 +4,13 @@ import uuid
 from sqlmodel import Session
 
 from app.config.settings import settings
-from app.schemas.collection import CollectionCreate, CollectionCreateQdrant, HNSWConfig, Distance
 from app.repositories.collection import CollectionRepository
 from app.models.collection import CollectionDB
-from app.schemas.collection import CollectionRead, CollectionsResponse
 from app.infrastructure.qdrant_gateway import QdrantGateway
+from app.schemas.collection import CollectionCreate, CollectionCreateQdrant, HNSWConfig
+from app.schemas.collection import CollectionRead, CollectionsResponse
+from app.schemas.user import User
+from app.exceptions import CollectionPermissionError
 
 
 class CollectionService:
@@ -21,14 +23,13 @@ class CollectionService:
         self,
         session: Session,
         qdrant: QdrantGateway,
-        current_user: "UserDB"
+        user: User
     ) -> CollectionsResponse:
         try:
-            if current_user.is_admin:
+            if user.is_admin:
                 collections_db = self.collection_repository.get_collections(session=session)
             else:
-                group_ids = [g.id for g in current_user.groups]
-                collections_db = self.collection_repository.get_collections_by_roles(session, group_ids)
+                collections_db = self.collection_repository.get_collections_by_roles(session, user.roles)
 
             collections_qdrant = await qdrant.get_collections(
                 collection_names=[collection.qdrant_name for collection in collections_db]
@@ -50,14 +51,14 @@ class CollectionService:
         self,
         session: Session,
         qdrant: QdrantGateway,
-        current_user: "UserDB",
+        user: User,
         collection_id: int
     ) -> CollectionRead:
         collection_db = self.collection_repository.get_collection(session=session, collection_id=collection_id)
 
         if not collection_db:
             raise ValueError(f"Collection with ID {collection_id} not found.")
-        elif "ROLE_ADMIN" not in current_user.roles and not (set(collection_db.roles) & set(current_user.roles)):
+        elif "ROLE_ADMIN" not in user.roles and not (set(collection_db.roles) & set(user.roles)):
             raise PermissionError("You do not have permission to access this collection.")
 
         try:
@@ -72,8 +73,12 @@ class CollectionService:
         self,
         session: Session,
         qdrant: QdrantGateway,
+        user: User,
         new_collection: CollectionCreate
     ) -> CollectionRead:
+        if not user.is_admin and not set(new_collection.roles).issubset(set(user.roles)):
+            raise CollectionPermissionError("User does not have permission to create a collection in this group.")
+
         qdrant_name = f"col_{new_collection.name}_{uuid.uuid4().hex}"
 
         try:
@@ -114,10 +119,13 @@ class CollectionService:
             self.logger.exception(f"Error creating collection {new_collection.name}")
             raise
 
-    async def delete_collection(self, session: Session, qdrant: QdrantGateway, collection_id: int) -> bool:
+    async def delete_collection(self, session: Session, qdrant: QdrantGateway, user: User, collection_id: int) -> bool:
         collection_db = self.collection_repository.get_collection(session=session, collection_id=collection_id)
         if not collection_db:
             raise ValueError(f"Collection with ID {collection_id} not found.")
+
+        if not user.is_admin and not set(collection_db.roles).issubset(set(user.roles)):
+            raise CollectionPermissionError("User does not have permission to delete a collection in this group.")
 
         try:
             self.collection_repository.delete_collection(session=session, collection_id=collection_id)

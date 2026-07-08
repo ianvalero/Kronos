@@ -1,12 +1,14 @@
-from fastapi import APIRouter, status, Depends, HTTPException
+from fastapi import APIRouter, status, Depends
 from sqlmodel import Session
 
 from app.database import get_session
 from app.infrastructure.qdrant_gateway import QdrantGateway
 from app.services.collection_service import CollectionService
 import app.dependencies.services as dependencies_services
+import app.dependencies.infrastructure as dependencies_infrastructure
 import app.dependencies.auth as dependencies_auth
 import app.schemas.collection as CollectionSchema
+from app.schemas.user import User
 
 router = APIRouter()
 
@@ -17,11 +19,15 @@ router = APIRouter()
     summary="Get all collection")
 async def get_collections(
     session: Session = Depends(get_session),
-    current_user: "UserDB" = Depends(dependencies_auth.get_current_user),
-    qdrant_service: QdrantGateway = Depends(dependencies_services.get_qdrant_service),
+    user: User = Depends(dependencies_auth.get_current_user),
+    qdrant_service: QdrantGateway = Depends(dependencies_infrastructure.get_qdrant_service),
     collection_service: CollectionService = Depends(dependencies_services.get_collection_service)
 ):
-    return await collection_service.get_collections(session, qdrant_service, current_user)
+    return await collection_service.get_collections(
+        session=session,
+        qdrant=qdrant_service,
+        user=user
+    )
 
 
 @router.get(
@@ -31,12 +37,17 @@ async def get_collections(
     summary="Get collection")
 async def get_collection(
     collection_id: int,
-    current_user: "UserDB" = Depends(dependencies_auth.get_current_user),
+    user: User = Depends(dependencies_auth.get_current_user),
     session: Session = Depends(get_session),
-    qdrant_service: QdrantGateway = Depends(dependencies_services.get_qdrant_service),
+    qdrant_service: QdrantGateway = Depends(dependencies_infrastructure.get_qdrant_service),
     collection_service: CollectionService = Depends(dependencies_services.get_collection_service)
 ):
-    return await collection_service.get_collection(session, qdrant_service, collection_id)
+    return await collection_service.get_collection(
+        session=session,
+        qdrant=qdrant_service,
+        user=user,
+        collection_id=collection_id
+    )
 
 
 @router.post(
@@ -47,19 +58,17 @@ async def get_collection(
     summary="Create collection")
 async def create_collection(
     body: CollectionSchema.CollectionCreate,
-    current_user: "UserDB" = Depends(dependencies_auth.get_current_user),
+    user: User = Depends(dependencies_auth.get_current_user),
     session: Session = Depends(get_session),
-    qdrant_service: QdrantGateway = Depends(dependencies_services.get_qdrant_service),
+    qdrant_service: QdrantGateway = Depends(dependencies_infrastructure.get_qdrant_service),
     collection_service: CollectionService = Depends(dependencies_services.get_collection_service)
 ):
-    user_groups = {group.id for group in current_user.groups}
-    if body.group_id not in user_groups:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="User does not have permission to create a collection in this group."
-        )
-
-    return await collection_service.create_collection(session, qdrant_service, body)
+    return await collection_service.create_collection(
+        session=session,
+        qdrant=qdrant_service,
+        user=user,
+        new_collection=body
+    )
 
 
 @router.delete(
@@ -69,9 +78,14 @@ async def create_collection(
     summary="Delete collection")
 async def delete_collection(
     collection_id: int,
-    current_user: "UserDB" = Depends(dependencies_auth.get_current_user),
+    user: User = Depends(dependencies_auth.get_current_user),
     session: Session = Depends(get_session),
-    qdrant_service: QdrantGateway = Depends(dependencies_services.get_qdrant_service),
+    qdrant_service: QdrantGateway = Depends(dependencies_infrastructure.get_qdrant_service),
     collection_service: CollectionService = Depends(dependencies_services.get_collection_service)
 ):
-    return await collection_service.delete_collection(session, qdrant_service, collection_id)
+    return await collection_service.delete_collection(
+        session=session,
+        qdrant=qdrant_service,
+        user=user,
+        collection_id=collection_id
+    )
