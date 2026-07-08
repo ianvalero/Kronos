@@ -1,6 +1,10 @@
+import hashlib
+from datetime import datetime, timezone
+from dateutil.relativedelta import relativedelta
 from sqlmodel import Session, select
 
-from app.models.user import UserDB, GroupDB, UserGroup
+from app.models.user import UserDB
+
 
 class UserRepository:
     def get_by_sso_id(self, session: Session, sso_id: str) -> UserDB | None:
@@ -10,35 +14,34 @@ class UserRepository:
         )
         return session.exec(statement).first()
 
-    def get_by_sso_group_ids(self, session: Session, sso_group_ids: list[str]) -> list[GroupDB]:
-        if not sso_group_ids:
-            return []
-
+    def get_by_api_key(self, session: Session, raw_api_key: str) -> UserDB | None:
+        api_key_hash = hashlib.sha256(raw_api_key.encode()).hexdigest()
         statement = (
-            select(GroupDB)
-            .where(GroupDB.sso_group_id.in_(sso_group_ids))
+            select(UserDB)
+            .where(UserDB.api_key_hash == api_key_hash)
         )
-        return session.exec(statement).all()
+        return session.exec(statement).first()
 
-    def create_user(self, session: Session, sso_id: str, name: str, email: str, default_role_id: int) -> UserDB:
-        user = UserDB(sso_id=sso_id, name=name, email=email, role_id=default_role_id)
-        session.add(user)
+    def update_or_create_user(self, session: Session, sso_id: str, username: str, email: str, name: str, roles: list[str]) -> UserDB:
+        user = self.get_by_sso_id(session, sso_id)
+        if not user:
+            user = UserDB(sso_id=sso_id, username=username, name=name, email=email, roles=roles)
+            session.add(user)
+        else:
+            user.username = username
+            user.name = name
+            user.email = email
+            user.roles = roles
+            user.is_active = True
+
         session.flush()
         return user
 
-    def sync_user_groups(self, session: Session, user: UserDB, groups: list[GroupDB]) -> None:
-        current_group_ids = {g.id for g in user.groups}
-        target_group_ids = {g.id for g in groups}
+    def set_api_key(self, session: Session, user: UserDB, api_key: str) -> None:
+        user.api_key_hash = hashlib.sha256(api_key.encode()).hexdigest()
+        self.update_api_key_expiration_date(session, user)
 
-        for group_id in target_group_ids - current_group_ids:
-            session.add(UserGroup(user_id=user.id, group_id=group_id))
-
-        for group_id in current_group_ids - target_group_ids:
-            statement = select(UserGroup).where(
-                UserGroup.user_id == user.id, UserGroup.group_id == group_id
-            )
-            link = session.exec(statement).first()
-            if link:
-                session.delete(link)
-
+    def update_api_key_expiration_date(self, session: Session, user: UserDB) -> None:
+        user.api_key_expires_at = datetime.now(timezone.utc) + relativedelta(months=3)
+        session.add(user)
         session.flush()

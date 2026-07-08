@@ -1,29 +1,29 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordRequestForm
-from sqlmodel import Session, select
+from fastapi import APIRouter, Depends
+from sqlmodel import Session
 
+import app.dependencies.services as dependencies
 from app.database import get_session
-from app.models.user import UserDB
+from app.schemas.user import User, UserLoginResponse
+from app.services.user_service import UserService
 
 router = APIRouter()
 
-@router.post("/token", include_in_schema=False)
-async def login_para_swagger(
-        form_data: OAuth2PasswordRequestForm = Depends(),
-        session: Session = Depends(get_session),
+@router.post(
+    "/token",
+    include_in_schema=False,
+    response_model=UserLoginResponse,
+    summary="User login"
+)
+async def login(
+    body: User,
+    session: Session = Depends(get_session),
+    user_service: UserService = Depends(dependencies.get_user_service),
 ):
-
-    statement = (
-        select(UserDB)
-        .where(UserDB.name == form_data.username)
+    return user_service.authenticate_sso_user(
+        session=session,
+        sso_id=body.sub,
+        username=body.username,
+        email=body.email,
+        name=body.name,
+        roles=body.roles,
     )
-    user = session.exec(statement).first()
-
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Usuario incorrecto para pruebas",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    return {"access_token": str(user.id), "token_type": "bearer"}

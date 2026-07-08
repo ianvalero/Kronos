@@ -3,7 +3,7 @@ from sqlmodel import Session
 
 from app.database import get_session
 import app.utils.document as util
-import app.dependencies as dependencies
+import app.dependencies.services as dependencies
 import app.schemas.document as DocumentSchema
 
 router = APIRouter()

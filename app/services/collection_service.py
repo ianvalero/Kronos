@@ -40,17 +40,11 @@ class CollectionService:
             raise
 
         collections_read = [
-            self.__create_collection_read(
-                collection_db,
-                qdrant_map.get(collection_db.qdrant_name, {})
-            )
+            self.__create_collection_read(collection_db, qdrant_map.get(collection_db.qdrant_name, {}))
             for collection_db in collections_db
         ]
 
-        return CollectionsResponse(
-            count=len(collections_read),
-            collections=collections_read
-        )
+        return CollectionsResponse(count=len(collections_read), collections=collections_read)
 
     async def get_collection(
         self,

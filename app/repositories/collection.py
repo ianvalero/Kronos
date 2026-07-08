@@ -16,6 +16,7 @@ class CollectionRepository:
     def get_collections_by_groups(self, session: Session, group_ids: list[int]) -> list[CollectionDB]:
         if not group_ids:
             return []
+
         statement = (
             select(CollectionDB)
             .join(GroupCollection, GroupCollection.collection_id == CollectionDB.id)

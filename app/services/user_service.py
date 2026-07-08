@@ -1,44 +1,35 @@
 import logging
+import secrets
 from sqlmodel import Session
 
 from app.repositories.user import UserRepository
-from app.models.user import UserDB
-
+from app.schemas.user import UserLoginResponse
 
 class UserService:
-    DEFAULT_ROLE_ID = 2
-
     def __init__(self):
         self.logger = logging.getLogger(f"app.{__name__}")
         self.user_repository = UserRepository()
         self.logger.info("User Service initialized")
 
-    def sync_user_from_sso(
-            self,
-            session: Session,
-            sso_id: str,
-            name: str,
-            email: str,
-            sso_group_ids: list[str],
-    ) -> UserDB:
-        user = self.user_repository.get_by_sso_id(session, sso_id)
+    def authenticate_sso_user(
+        self,
+        session: Session,
+        sso_id: str,
+        username: str,
+        email: str,
+        name: str,
+        roles: list[str]
+    ) -> str:
+        user = self.user_repository.update_or_create_user(session, sso_id, username, email, name, roles)
+        new_api_key = secrets.token_urlsafe(32)
 
-        if not user:
-            user = self.user_repository.create_user(
-                session=session,
-                sso_id=sso_id,
-                name=name,
-                email=email,
-                default_role_id=self.DEFAULT_ROLE_ID,
-            )
-            self.logger.info(f"SSO User created: {sso_id}")
-        else:
-            user.name = name
-            user.email = email
-
-        groups = self.user_repository.get_by_sso_group_ids(session, sso_group_ids)
-        self.user_repository.sync_user_groups(session, user, groups)
+        self.user_repository.set_api_key(session, user, new_api_key)
 
         session.commit()
         session.refresh(user)
-        return user
+
+        return UserLoginResponse(
+            id=user.id,
+            username=user.username,
+            api_key=new_api_key
+        )

@@ -1,56 +1,23 @@
-from typing import TYPE_CHECKING
+from datetime import datetime
+from sqlalchemy import Column, ARRAY, String
 from sqlmodel import SQLModel, Field, Relationship
-
-if TYPE_CHECKING:
-    from app.models.collection import CollectionDB
-
-class UserGroup(SQLModel, table=True):
-    __tablename__ = "user_group"
-
-    user_id: int | None = Field(default=None, foreign_key="users.id", primary_key=True)
-    group_id: int | None = Field(default=None, foreign_key="groups.id", primary_key=True)
-
-
-class GroupCollection(SQLModel, table=True):
-    __tablename__ = "group_collection"
-
-    group_id: int | None = Field(default=None, foreign_key="groups.id", primary_key=True)
-    collection_id: int | None = Field(default=None, foreign_key="collections.id", primary_key=True)
 
 
 class UserDB(SQLModel, table=True):
     __tablename__ = "users"
 
     id: int | None = Field(default=None, primary_key=True)
-    role_id: int = Field(foreign_key="roles.id")
-    sso_id: str
+    sso_id: str = Field(unique=True, index=True)
+    username: str = Field(unique=True)
     name: str
     email: str
+    roles: list[str] = Field(sa_column=Column(ARRAY(String)))
+    api_key_hash: str | None = Field(default=None, unique=True, index=True)
+    api_key_expires_at: datetime | None = Field(default=None)
     is_active: bool = Field(default=True)
-    last_login: str | None = Field(default=None)
-
-    groups: list["GroupDB"] = Relationship(back_populates="users", link_model=UserGroup)
-    role: "RoleDB" = Relationship()
+    last_login: datetime | None = Field(default=None)
+    created_at: datetime = Field(default_factory=datetime.now)
 
     @property
     def is_admin(self) -> bool:
-        return self.role is not None and self.role.name == "admin"
-
-
-class GroupDB(SQLModel, table=True):
-    __tablename__ = "groups"
-
-    id: int | None = Field(default=None, primary_key=True)
-    sso_group_id: str
-    name: str
-
-    collections: list["CollectionDB"] = Relationship(back_populates="groups", link_model=GroupCollection)
-    users: list["UserDB"] = Relationship(back_populates="groups", link_model=UserGroup)
-
-
-class RoleDB(SQLModel, table=True):
-    __tablename__ = "roles"
-
-    id: int | None = Field(default=None, primary_key=True)
-    name: str
-    description: str | None = Field(default=None)
+        return "ROLE_ADMIN" in self.roles
