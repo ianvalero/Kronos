@@ -24,25 +24,25 @@ class UserRepository:
         return session.exec(statement).first()
 
     def update_or_create_user(self, session: Session, user: UserSSO) -> UserDB:
-        user = self.get_by_sso_id(session, user.sso_id)
-        if not user:
-            user = UserDB(
+        user_db = self.get_by_sso_id(session, user.sso_id)
+        if not user_db:
+            user_db = UserDB(
                 sso_id=user.sso_id,
                 username=user.username,
                 name=user.name,
                 email=user.email,
                 roles=user.roles
             )
-            session.add(user)
+            session.add(user_db)
         else:
-            user.username = user.username
-            user.name = user.name
-            user.email = user.email
-            user.roles = user.roles
-            user.is_active = True
+            user_db.username = user.username
+            user_db.name = user.name
+            user_db.email = user.email
+            user_db.roles = user.roles
+            user_db.is_active = True
 
         session.flush()
-        return user
+        return user_db
 
     def set_api_key(self, session: Session, user: UserDB, api_key: str) -> None:
         user.api_key_hash = hashlib.sha256(api_key.encode()).hexdigest()

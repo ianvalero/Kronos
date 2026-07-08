@@ -12,7 +12,7 @@ class QdrantGateway:
     def __init__(self):
         self.logger = logging.getLogger(f"app.{__name__}")
 
-        self._qdrant_client = QdrantGateway(url=settings.qdrant_url)
+        self._qdrant_client = QdrantClient(url=settings.qdrant_url)
         self._qdrant_aclient = AsyncQdrantClient(url=settings.qdrant_url)
 
         self._index_cache: dict = {}

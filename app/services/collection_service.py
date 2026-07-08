@@ -10,7 +10,7 @@ from app.infrastructure.qdrant_gateway import QdrantGateway
 from app.schemas.collection import CollectionCreate, CollectionCreateQdrant, HNSWConfig
 from app.schemas.collection import CollectionRead, CollectionsResponse
 from app.schemas.user import User
-from app.exceptions import CollectionPermissionError
+from app.exceptions import CollectionPermissionError, CollectionNotFoundError
 
 
 class CollectionService:
@@ -57,9 +57,9 @@ class CollectionService:
         collection_db = self.collection_repository.get_collection(session=session, collection_id=collection_id)
 
         if not collection_db:
-            raise ValueError(f"Collection with ID {collection_id} not found.")
-        elif "ROLE_ADMIN" not in user.roles and not (set(collection_db.roles) & set(user.roles)):
-            raise PermissionError("You do not have permission to access this collection.")
+            raise CollectionNotFoundError(f"Collection with ID {collection_id} not found.")
+        elif not user.is_admin and not (set(collection_db.roles) & set(user.roles)):
+            raise CollectionPermissionError("You do not have permission to access this collection.")
 
         try:
             collection_qdrant = await qdrant.get_collection(collection_name=collection_db.qdrant_name)
@@ -122,7 +122,7 @@ class CollectionService:
     async def delete_collection(self, session: Session, qdrant: QdrantGateway, user: User, collection_id: int) -> bool:
         collection_db = self.collection_repository.get_collection(session=session, collection_id=collection_id)
         if not collection_db:
-            raise ValueError(f"Collection with ID {collection_id} not found.")
+            raise CollectionNotFoundError(f"Collection with ID {collection_id} not found.")
 
         if not user.is_admin and not set(collection_db.roles).issubset(set(user.roles)):
             raise CollectionPermissionError("User does not have permission to delete a collection in this group.")
