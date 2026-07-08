@@ -5,7 +5,7 @@ import logging
 from app.models.document import DocumentVersionDB
 from app.config.settings import settings
 
-class RedisService:
+class RedisClient:
     def __init__(self):
         self.logger = logging.getLogger(f"app.{__name__}")
 

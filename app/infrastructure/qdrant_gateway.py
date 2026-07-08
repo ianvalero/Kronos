@@ -8,15 +8,15 @@ from app.config.settings import settings
 from app.schemas.collection import CollectionCreateQdrant
 
 
-class QdrantService:
+class QdrantGateway:
     def __init__(self):
         self.logger = logging.getLogger(f"app.{__name__}")
 
-        self._qdrant_client = QdrantClient(url=settings.qdrant_url)
+        self._qdrant_client = QdrantGateway(url=settings.qdrant_url)
         self._qdrant_aclient = AsyncQdrantClient(url=settings.qdrant_url)
 
         self._index_cache: dict = {}
-        self.logger.info("Qdrant Service initialized")
+        self.logger.info("Qdrant Client initialized")
 
     async def get_collections(self, collection_names: list[str]) -> list[dict]:
         full_collections = await asyncio.gather(*[

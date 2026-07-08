@@ -3,12 +3,12 @@ import uuid
 
 from sqlmodel import Session
 
+from app.config.settings import settings
 from app.schemas.collection import CollectionCreate, CollectionCreateQdrant, HNSWConfig, Distance
 from app.repositories.collection import CollectionRepository
 from app.models.collection import CollectionDB
-from app.models.user import GroupCollection
 from app.schemas.collection import CollectionRead, CollectionsResponse
-from app.services.qdrant_service import QdrantService
+from app.infrastructure.qdrant_gateway import QdrantGateway
 
 
 class CollectionService:
@@ -20,7 +20,7 @@ class CollectionService:
     async def get_collections(
         self,
         session: Session,
-        qdrant: QdrantService,
+        qdrant: QdrantGateway,
         current_user: "UserDB"
     ) -> CollectionsResponse:
         try:
@@ -28,7 +28,7 @@ class CollectionService:
                 collections_db = self.collection_repository.get_collections(session=session)
             else:
                 group_ids = [g.id for g in current_user.groups]
-                collections_db = self.collection_repository.get_collections_by_groups(session, group_ids)
+                collections_db = self.collection_repository.get_collections_by_roles(session, group_ids)
 
             collections_qdrant = await qdrant.get_collections(
                 collection_names=[collection.qdrant_name for collection in collections_db]
@@ -49,12 +49,16 @@ class CollectionService:
     async def get_collection(
         self,
         session: Session,
-        qdrant: QdrantService,
+        qdrant: QdrantGateway,
+        current_user: "UserDB",
         collection_id: int
     ) -> CollectionRead:
         collection_db = self.collection_repository.get_collection(session=session, collection_id=collection_id)
+
         if not collection_db:
             raise ValueError(f"Collection with ID {collection_id} not found.")
+        elif "ROLE_ADMIN" not in current_user.roles and not (set(collection_db.roles) & set(current_user.roles)):
+            raise PermissionError("You do not have permission to access this collection.")
 
         try:
             collection_qdrant = await qdrant.get_collection(collection_name=collection_db.qdrant_name)
@@ -67,7 +71,7 @@ class CollectionService:
     async def create_collection(
         self,
         session: Session,
-        qdrant: QdrantService,
+        qdrant: QdrantGateway,
         new_collection: CollectionCreate
     ) -> CollectionRead:
         qdrant_name = f"col_{new_collection.name}_{uuid.uuid4().hex}"
@@ -77,20 +81,20 @@ class CollectionService:
                 qdrant_name=qdrant_name,
                 gulax_name=new_collection.name,
                 description=new_collection.description,
+                roles=new_collection.roles
             )
             self.collection_repository.create_collection(session=session, collection=collection_db)
 
-            #TODO Revisar esto para que coja los datos que se pongan en settings .env
             qdrant_config = CollectionCreateQdrant(
                 name=qdrant_name,
-                size=1536,
-                distance=Distance.COSINE,
-                shard_number=1,
-                replication_factor=1,
-                on_disk_payload=True,
+                size=settings.qdrant.size,
+                distance=settings.qdrant.distance,
+                shard_number=settings.qdrant.shard_number,
+                replication_factor=settings.qdrant.replication_factor,
+                on_disk_payload=settings.qdrant.on_disk_payload,
                 hnsw_config=HNSWConfig(
-                    m=16,
-                    ef_construct=200
+                    m=settings.qdrant.node_conexions_number,
+                    ef_construct=settings.qdrant.ef_construct
                 ),
             )
             collection_qdrant = await qdrant.create_collection(config=qdrant_config)
@@ -110,7 +114,7 @@ class CollectionService:
             self.logger.exception(f"Error creating collection {new_collection.name}")
             raise
 
-    async def delete_collection(self,session: Session, qdrant: QdrantService, collection_id: int) -> bool:
+    async def delete_collection(self, session: Session, qdrant: QdrantGateway, collection_id: int) -> bool:
         collection_db = self.collection_repository.get_collection(session=session, collection_id=collection_id)
         if not collection_db:
             raise ValueError(f"Collection with ID {collection_id} not found.")

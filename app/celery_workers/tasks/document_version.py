@@ -13,28 +13,28 @@ from sqlmodel import Session
 from app.celery_workers.celery_app import celery_app
 from app.config.settings import settings
 from app.database import engine
-from app.services.qdrant_service import QdrantService
-from app.services.sql_service import SqlService
+from app.infrastructure.qdrant_gateway import QdrantGateway
+from app.repositories.document_version import DocumentVersionRepository
 
 logger = logging.getLogger(f"app.{__name__}")
 
-qdrant_service: QdrantService | None = None
-sql_service: SqlService | None = None
+qdrant_service: QdrantGateway | None = None
+document_version_repository: DocumentVersionRepository | None = None
 embedding_model: OpenAIEmbedding | None = None
 worker_loop: asyncio.AbstractEventLoop | None = None
 
 
 @worker_process_init.connect
 def init_worker_connections(**kwargs):
-    global qdrant_service, sql_service, embedding_model, worker_loop
+    global qdrant_service, document_version_repository, embedding_model, worker_loop
 
     logger.info("Starting worker process. Initializing connections...")
 
     worker_loop = asyncio.new_event_loop()
     asyncio.set_event_loop(worker_loop)
 
-    qdrant_service = QdrantService()
-    sql_service = SqlService()
+    qdrant_service = QdrantGateway()
+    document_version_repository = DocumentVersionRepository()
     embedding_model = OpenAIEmbedding(
         model_name=settings.embedding_model_name,
         api_base=settings.embedding_base_url,
@@ -64,7 +64,7 @@ def run_async(coro):
 )
 def process_document_version(self, document_version_id: int):
     with Session(engine) as session:
-        document_version = sql_service.get_document_version(document_version_id, session)
+        document_version = document_version_repository.get_document_version(session, document_version_id)
         if not document_version:
             logger.error(f"Document version {document_version_id} not found in database")
             return False
@@ -72,7 +72,7 @@ def process_document_version(self, document_version_id: int):
         collection_name = document_version.document.collection
 
         try:
-            sql_service.update_document_version_status(
+            document_version_repository.update_document_version_status(
                 document_version_id=document_version_id,
                 status="processing",
                 session=session,
@@ -95,7 +95,7 @@ def process_document_version(self, document_version_id: int):
                 )
             )
 
-            sql_service.update_document_version_status(
+            document_version_repository.update_document_version_status(
                 document_version_id=document_version_id,
                 status="completed",
                 session=session,
@@ -116,7 +116,7 @@ def process_document_version(self, document_version_id: int):
         except Exception as err:
             logger.exception(f"Error processing document version: {document_version.id}")
 
-            sql_service.update_document_version_status(
+            document_version_repository.update_document_version_status(
                 document_version_id=document_version_id,
                 status="failed",
                 session=session,
@@ -171,10 +171,7 @@ def _delete_local_file(file_path: str) -> bool:
 
 
 def _archive_previous_versions(document_id: int, current_version_id: int, collection_name: str, session: Session) -> None:
-    completed_versions = sql_service.get_document_completed_versions(
-        document_id=document_id,
-        session=session,
-    )
+    completed_versions = document_version_repository.get_document_completed_versions(session, document_id)
 
     previous_versions = [
         version for version in completed_versions
@@ -194,7 +191,7 @@ def _archive_previous_versions(document_id: int, current_version_id: int, collec
                 logger.exception(f"Failed to delete Qdrant points for version {version.id}")
                 continue
 
-        sql_service.update_document_version_status(
+        document_version_repository.update_document_version_status(
             document_version_id=version.id,
             status="archived",
             session=session,

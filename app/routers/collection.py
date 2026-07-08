@@ -2,7 +2,7 @@ from fastapi import APIRouter, status, Depends, HTTPException
 from sqlmodel import Session
 
 from app.database import get_session
-from app.services.qdrant_service import QdrantService
+from app.infrastructure.qdrant_gateway import QdrantGateway
 from app.services.collection_service import CollectionService
 import app.dependencies.services as dependencies_services
 import app.dependencies.auth as dependencies_auth
@@ -18,7 +18,7 @@ router = APIRouter()
 async def get_collections(
     session: Session = Depends(get_session),
     current_user: "UserDB" = Depends(dependencies_auth.get_current_user),
-    qdrant_service: QdrantService = Depends(dependencies_services.get_qdrant_service),
+    qdrant_service: QdrantGateway = Depends(dependencies_services.get_qdrant_service),
     collection_service: CollectionService = Depends(dependencies_services.get_collection_service)
 ):
     return await collection_service.get_collections(session, qdrant_service, current_user)
@@ -33,7 +33,7 @@ async def get_collection(
     collection_id: int,
     current_user: "UserDB" = Depends(dependencies_auth.get_current_user),
     session: Session = Depends(get_session),
-    qdrant_service: QdrantService = Depends(dependencies_services.get_qdrant_service),
+    qdrant_service: QdrantGateway = Depends(dependencies_services.get_qdrant_service),
     collection_service: CollectionService = Depends(dependencies_services.get_collection_service)
 ):
     return await collection_service.get_collection(session, qdrant_service, collection_id)
@@ -49,7 +49,7 @@ async def create_collection(
     body: CollectionSchema.CollectionCreate,
     current_user: "UserDB" = Depends(dependencies_auth.get_current_user),
     session: Session = Depends(get_session),
-    qdrant_service: QdrantService = Depends(dependencies_services.get_qdrant_service),
+    qdrant_service: QdrantGateway = Depends(dependencies_services.get_qdrant_service),
     collection_service: CollectionService = Depends(dependencies_services.get_collection_service)
 ):
     user_groups = {group.id for group in current_user.groups}
@@ -71,7 +71,7 @@ async def delete_collection(
     collection_id: int,
     current_user: "UserDB" = Depends(dependencies_auth.get_current_user),
     session: Session = Depends(get_session),
-    qdrant_service: QdrantService = Depends(dependencies_services.get_qdrant_service),
+    qdrant_service: QdrantGateway = Depends(dependencies_services.get_qdrant_service),
     collection_service: CollectionService = Depends(dependencies_services.get_collection_service)
 ):
     return await collection_service.delete_collection(session, qdrant_service, collection_id)

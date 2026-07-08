@@ -2,6 +2,8 @@ from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field, model_validator
 
+from app.schemas.collection import Distance
+
 
 class RedisSettings(BaseSettings):
     host: str
@@ -36,6 +38,22 @@ class CelerySettings(BaseSettings):
         extra="ignore",
     )
 
+class QdrantSettings(BaseSettings):
+    size: int                               # Número de dimensiones de cada vector - ¡Tiene que ser lo que indique el modelo de embbeding!
+    distance: Distance = Distance.COSINE    # Define como se calcula la similitud entre vectores
+    shard_number: int = 1                   # Divide la colección en particiones
+    replication_factor: int = 1             # Duplica datos para alta disponibilidad
+    on_disk_payload: bool = True            # Guardar metadata en disco en lugar de RAM
+    node_conexions_number: int = 16         # Número de conexiones por nodo
+    ef_construct: int = 200                 # Calidad del índice al construirlo
+
+    model_config = SettingsConfigDict(
+        env_prefix="QDRANT_",
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",
+    )
 
 class Settings(BaseSettings):
     log_level: str = "INFO"
@@ -50,6 +68,7 @@ class Settings(BaseSettings):
 
     redis: RedisSettings = Field(default_factory=RedisSettings)
     celery: CelerySettings = Field(default_factory=CelerySettings)
+    qdrant: QdrantSettings = Field(default_factory=QdrantSettings)
 
     @model_validator(mode="after")
     def assemble_celery_urls(self):

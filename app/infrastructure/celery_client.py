@@ -4,11 +4,11 @@ from celery.result import AsyncResult
 from app.celery_workers.celery_app import celery_app
 
 
-class CeleryService:
+class CeleryClient:
     def __init__(self):
         self.logger = logging.getLogger(f"app.{__name__}")
         self.celery_app = celery_app
-        self.logger.info("Celery Service initialized")
+        self.logger.info("Celery Client initialized")
 
     def get_task_status(self, task_id: str) -> dict:
         """

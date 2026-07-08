@@ -1,8 +1,7 @@
 from pydantic import BaseModel, Field, ConfigDict
-from typing import List, Union, Optional
 from datetime import datetime
-
 from enum import Enum
+
 
 class Distance(str, Enum):
     COSINE = "Cosine"
@@ -10,9 +9,32 @@ class Distance(str, Enum):
     DOT = "Dot"
 
 
+class HNSWConfig(BaseModel):
+    m: int = Field(gt=0, description="Maximum number of connections per node")
+    ef_construct: int = Field(gt=0, description="Index quality during construction")
+
+
+class CollectionCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+    description: str | None = Field(default=None, max_length=255)
+    roles: list[str] = Field(default_factory=list)
+
+
+class CollectionCreateQdrant(BaseModel):
+    name: str = Field(min_length=1)
+    size: int = Field(gt=0, description="Number of dimensions for each vector")
+    distance: Distance = Field(default=Distance.COSINE, description="Distance metric used to calculate similarity between vectors")
+    shard_number: int | None = Field(default=1, description="Number of shards used to partition the collection")
+    replication_factor: int | None = Field(default=1, description="Number of replicas for high availability")
+    on_disk_payload: bool | None = Field(default=True,description="Store payload metadata on disk instead of in RAM")
+    hnsw_config: HNSWConfig | None = None
+
+    model_config = ConfigDict(extra="forbid")
+
+
 class CollectionVectors(BaseModel):
-    dimension: Union[int, dict[str, int]]
-    distance: Union[Distance, dict[str, Distance]]
+    dimension: int | dict[str, int]
+    distance: Distance | dict[str, Distance]
 
 
 class CollectionRead(BaseModel):
@@ -28,29 +50,4 @@ class CollectionRead(BaseModel):
 
 class CollectionsResponse(BaseModel):
     count: int
-    collections: List[CollectionRead]
-
-
-class CollectionCreate(BaseModel):
-    name: str = Field(min_length=1, max_length=100)
-    description: str | None = Field(default=None, max_length=255)
-    group_id: int
-
-
-class HNSWConfig(BaseModel):
-    m: int = 16                                                 # Número de conexiones por nodo
-    ef_construct: int = 200                                     # Calidad del índice al construirlo
-
-
-class CollectionCreateQdrant(BaseModel):
-    name: str
-
-    size: int = Field(1536, gt=0)                               # Número de dimensiones de cada vector
-    distance: Distance = Distance.COSINE                        # Define como se calcula la similitud entre vectores
-    shard_number: Optional[int] = 1                             # Divide la colección en particiones
-    replication_factor: Optional[int] = 1                       # Duplica datos para alta disponibilidad
-    on_disk_payload: Optional[bool] = True                      # Guardar metadata en disco en lugar de RAM
-
-    hnsw_config: Optional[HNSWConfig] = None
-
-    model_config = ConfigDict(extra="forbid")
+    collections: list[CollectionRead]
