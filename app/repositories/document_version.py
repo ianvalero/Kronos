@@ -53,8 +53,7 @@ class DocumentVersionRepository:
         )
 
         session.add(document_version)
-        session.commit()
-        session.refresh(document_version)
+        session.flush()
 
         return document_version
 
@@ -69,8 +68,7 @@ class DocumentVersionRepository:
             return None
 
         document_version.task_id = task_id
-        session.commit()
-        session.refresh(document_version)
+        session.flush()
 
         return document_version
 
@@ -94,7 +92,6 @@ class DocumentVersionRepository:
         if increment_attempts:
             document_version.attempts += 1
 
-        session.commit()
-        session.refresh(document_version)
+        session.flush()
 
         return document_version

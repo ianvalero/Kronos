@@ -60,7 +60,7 @@ async def upload_document(
     )
 
 @router.delete(
-"/{document_id}",
+"/{collection_id}/documents/{document_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete document")
 async def delete_document(

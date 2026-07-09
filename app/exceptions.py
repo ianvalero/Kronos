@@ -17,4 +17,11 @@ class CollectionNotFoundError(AppException):
 class DocumentNotFoundError(AppException):
     status_code = 404
 
+class DocumentVersionNotFoundError(AppException):
+    status_code = 404
 
+class CeleryTaskEnqueueError(AppException):
+    status_code = 503
+
+class CeleryTaskNotFoundError(AppException):
+    status_code = 404

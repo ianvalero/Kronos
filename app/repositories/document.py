@@ -20,11 +20,10 @@ class DocumentRepository:
 
         return session.exec(statement).all()
 
-    def get_document(self, session: Session, collection_id: int, document_id: int) -> DocumentDB | None:
+    def get_document(self, session: Session, document_id: int) -> DocumentDB | None:
         statement = (
             select(DocumentDB)
             .where(
-                DocumentDB.collection_id == collection_id,
                 DocumentDB.id == document_id,
                 DocumentDB.deleted_at.is_(None)
             )

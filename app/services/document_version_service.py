@@ -1,15 +1,21 @@
+from typing import TYPE_CHECKING
+import os
+import uuid
+import aiofiles
 import logging
-from datetime import datetime
 
 from sqlmodel import Session
 
+from app.config.settings import settings
 from app.services import DocumentService
 from app.repositories.document_version import DocumentVersionRepository
-from app.models.document import DocumentDB
 from app.infrastructure.celery_client import CeleryClient
-from app.schemas.document import DocumentRead, DocumentCreate, DocumentDelete
+import app.schemas.document_version as DocumentVersionSchema
 from app.schemas.user import User
-from app.exceptions import DocumentNotFoundError
+from app.exceptions import DocumentVersionNotFoundError, CeleryTaskEnqueueError
+
+if TYPE_CHECKING:
+    from fastapi import UploadFile
 
 
 class DocumentVersionService:
@@ -20,12 +26,103 @@ class DocumentVersionService:
         self.document_version_repository = DocumentVersionRepository()
         self.logger.info("Document Version Service initialized")
 
-    def get_document_versions(self, session: Session, user: User, document_id: int):
-        document_version_db = self.document_version_repository.get_document_versions(session, document_id)
-        document_db = self.document_service.get_document(session, user, document_id)
+    async def get_document_versions(
+        self,
+        session: Session,
+        user: User,
+        document_id: int
+    ) -> list[DocumentVersionSchema.DocumentVersion]:
+        await self.__check_document_permissions(session=session, user=user, document_id=document_id)
+        document_versions_db = self.document_version_repository.get_document_versions(
+            session=session,
+            document_id=document_id
+        )
 
-    def get_document_version(self, session: Session, user: User, document_id: int, document_version_id: int):
-        pass
+        return [
+            DocumentVersionSchema.DocumentVersion(**document_version_db.model_dump())
+            for document_version_db in document_versions_db
+        ]
 
-    def add_document_version(self):
-        pass
+    async def get_document_version(
+        self,
+        session: Session,
+        user: User,
+        document_id: int,
+        document_version_id: int
+    ) -> DocumentVersionSchema.DocumentVersionDetail:
+        await self.__check_document_permissions(session=session, user=user, document_id=document_id)
+        document_version_db = self.document_version_repository.get_document_version(
+            session=session,
+            document_version_id=document_version_id
+        )
+
+        if not document_version_db:
+            raise DocumentVersionNotFoundError(f"Document version {document_version_id} not found")
+
+        return DocumentVersionSchema.DocumentVersion(**document_version_db.model_dump())
+
+    async def add_document_version(
+        self,
+        session: Session,
+        user: User,
+        document_id: int,
+        file: UploadFile,
+        document_version: DocumentVersionSchema.DocumentVersionPayload
+    ) -> DocumentVersionSchema.DocumentVersionDetail:
+        await self.__check_document_permissions(session=session, user=user, document_id=document_id)
+
+        payload = DocumentVersionSchema.DocumentVersionCreate(
+            saved_file_path=await self.__save_document_version_file(file=file),
+            filename=file.filename,
+            uploaded_by=document_version.uploaded_by,
+            file_size=file.size,
+            mime_type=file.content_type
+        )
+
+        document_version_db = self.document_version_repository.add_document_version(
+            session=session,
+            document_id=document_id,
+            document_version=payload
+        )
+
+        try:
+            task_id = self.celery.update_document_version(document_version_id=document_version_db.id)
+            document_version = self.document_version_repository.set_document_version_task_id(
+                session=session,
+                document_version_id=document_version_db.id,
+                task_id=task_id
+            )
+
+            session.commit()
+            session.refresh(document_version)
+
+        except Exception as err:
+            session.rollback()
+            raise CeleryTaskEnqueueError(
+                f"Failed to enqueue Celery task to process a new document version for document {document_id}"
+            ) from err
+
+        return DocumentVersionSchema.DocumentVersionDetail(**document_version.model_dump())
+
+    async def __save_document_version_file(self, file: UploadFile):
+        original_name, extension = os.path.splitext(os.path.basename(file.filename))
+        original_name = original_name.replace(" ", "_")
+
+        save_path = os.path.join(
+            settings.files_storage_path,
+            f"{str(uuid.uuid4())}_{original_name}{extension}"
+        )
+        async with aiofiles.open(save_path, "wb") as buffer:
+            while chunk := await file.read(1024 * 1024):
+                await buffer.write(chunk)
+
+        self.logger.info(f"Document version file {file.filename} saved to {save_path}")
+        return save_path
+
+    async def __check_document_permissions(self, session: Session, user: User, document_id: int):
+        await self.document_service.get_document_by_id(
+            session=session,
+            user=user,
+            document_id=document_id
+        )
+        return True

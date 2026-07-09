@@ -21,7 +21,11 @@ class DocumentService:
         self.logger.info("Document Service initialized")
 
     async def get_documents(self, session: Session, user: User, collection_id: int) -> list[DocumentRead]:
-        collection = await self.collection_service.get_collection(session, collection_id, user)
+        collection = await self.collection_service.get_collection(
+            session=session,
+            user=user,
+            collection_id=collection_id
+        )
         documents_db = self.document_repository.get_documents(session=session, collection_id=collection.id)
 
         return [
@@ -39,6 +43,20 @@ class DocumentService:
 
         return DocumentRead(**document_db.model_dump())
 
+    async def get_document_by_id(self, session: Session, user: User, document_id: int) -> DocumentRead:
+        document_db = self.document_repository.get_document(session=session, document_id=document_id)
+
+        if not document_db:
+            raise DocumentNotFoundError(f"Document {document_id} not found")
+
+        await self.collection_service.get_collection(
+            session=session,
+            user=user,
+            collection_id=document_db.collection_id
+        )
+
+        return DocumentRead(**document_db.model_dump())
+
 
     async def add_document(
         self,
@@ -47,8 +65,12 @@ class DocumentService:
         collection_id: int,
         document: DocumentCreate
     ) -> DocumentRead:
-        collection = await self.collection_service.get_collection(session, collection_id, user)
-        document_db: DocumentDB = DocumentDB(**document.model_dump(), collection_id=collection_id)
+        collection = await self.collection_service.get_collection(
+            session=session,
+            user=user,
+            collection_id=collection_id
+        )
+        document_db: DocumentDB = DocumentDB(**document.model_dump(), collection_id=collection.id)
 
         session.add(document_db)
         session.commit()
@@ -86,14 +108,17 @@ class DocumentService:
         return True
 
     async def __fetch_document(self, session: Session, user: User, collection_id: int, document_id: int) -> DocumentDB:
-        collection = await self.collection_service.get_collection(session, collection_id, user)
+        await self.collection_service.get_collection(
+            session=session,
+            user=user,
+            collection_id=collection_id
+        )
         document_db = self.document_repository.get_document(
             session=session,
-            collection_id=collection.id,
             document_id=document_id
         )
 
-        if not document_db:
+        if not document_db or document_db.collection_id != collection_id:
             raise DocumentNotFoundError(f"Document {document_id} not found in collection {collection_id}")
 
         return document_db
