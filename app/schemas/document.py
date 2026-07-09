@@ -3,7 +3,8 @@ from datetime import datetime
 from sqlmodel import SQLModel
 
 if TYPE_CHECKING:
-    from app.schemas.document_version import DocumentVersionRead
+    from app.schemas.document_version import DocumentVersion
+
 
 class DocumentRead(SQLModel):
     id: int
@@ -12,7 +13,7 @@ class DocumentRead(SQLModel):
     created_at: datetime
     deleted_at: datetime | None = None
     deleted_by: str | None = None
-    documents_versions: list["DocumentVersionRead"] = list()
+    documents_versions: list["DocumentVersion"] = list()
 
 
 class DocumentCreate(SQLModel):

@@ -1,5 +1,6 @@
 from .collection import CollectionDB
-from .document import DocumentDB, DocumentVersionDB
+from .document import DocumentDB
+from .document_version import DocumentVersionDB
 from .user import UserDB
 
 __all__ = [

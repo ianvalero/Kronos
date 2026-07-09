@@ -7,7 +7,7 @@ from contextlib import asynccontextmanager
 from openinference.instrumentation.llama_index import LlamaIndexInstrumentor
 
 from app.config.log import setup_logging
-from app.routers import collection, document, auth
+from app.routers import collection, document, document_version, auth
 import app.services as services
 import app.infrastructure as infrastructure
 
@@ -30,6 +30,7 @@ async def lifespan(app: FastAPI):
         qdrant_gateway=app.state.qdrant_gateway,
         collection_service=app.state.collection_service
     )
+    app.state.document_version_service = services.DocumentVersionService()
     app.state.user_service = services.UserService()
 
     yield
@@ -74,3 +75,4 @@ async def global_exception_handler(request: Request, exc: Exception):
 app.include_router(auth.router, prefix="/api/auth")
 app.include_router(collection.router, prefix="/api/collections")
 app.include_router(document.router, prefix="/api/collections")
+app.include_router(document_version.router, prefix="/api/documents")

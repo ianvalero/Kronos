@@ -1,19 +1,18 @@
-from app.services import DocumentService
-from fastapi import APIRouter, HTTPException, Depends, status, UploadFile, File, Form
+from fastapi import APIRouter, Depends, status
 from sqlmodel import Session
 
 from app.database import get_session
 import app.dependencies.services as dependencies_services
-import app.dependencies.infrastructure as dependencies_infrastructure
 import app.dependencies.auth as dependencies_auth
-import app.schemas.document as DocumentSchema
+from app.services import DocumentService
+from app.schemas.document import DocumentRead, DocumentCreate, DocumentDelete
 from app.schemas.user import User
 
 router = APIRouter(tags=["documents"])
 
 @router.get(
 "/{collection_id}/documents",
-    response_model=list[DocumentSchema.DocumentRead],
+    response_model=list[DocumentRead],
     summary="Get all documents in a collection")
 async def get_documents(
     collection_id: int,
@@ -25,7 +24,7 @@ async def get_documents(
 
 @router.get(
 "/{collection_id}/documents/{document_id}",
-    response_model=DocumentSchema.DocumentRead,
+    response_model=DocumentRead,
     summary="Get document by id")
 async def get_document(
     collection_id: int,
@@ -43,12 +42,12 @@ async def get_document(
 
 @router.post(
 "/{collection_id}/documents/",
-    response_model=DocumentSchema.DocumentRead,
+    response_model=DocumentRead,
     status_code=status.HTTP_201_CREATED,
     summary="Upload new document")
 async def upload_document(
     collection_id: int,
-    payload: DocumentSchema.DocumentCreate,
+    payload: DocumentCreate,
     session: Session = Depends(get_session),
     user: User = Depends(dependencies_auth.get_current_user),
     document_service: DocumentService = Depends(dependencies_services.get_document_service)
@@ -67,23 +66,15 @@ async def upload_document(
 async def delete_document(
     collection_id: int,
     document_id: int,
-    payload: DocumentSchema.DocumentDelete,
+    payload: DocumentDelete,
     session: Session = Depends(get_session),
     user: User = Depends(dependencies_auth.get_current_user),
     document_service: DocumentService = Depends(dependencies_services.get_document_service)
 ):
-    return await document_service.delete_document()
-
-
-
-
-
-    document = sql_service.get_document(document_id, session)
-    if not document:
-        raise HTTPException(status_code=404, detail="Document not found")
-
-    active_version = document.documents_versions[0] if document.documents_versions else None
-    if active_version and active_version.qdrant_point_ids:
-        await qdrant_service.delete_points(document.collection, active_version.qdrant_point_ids)
-
-    sql_service.delete_document(document_id, payload, session)
+    return await document_service.delete_document(
+        session=session,
+        user=user,
+        collection_id=collection_id,
+        document_id=document_id,
+        document=payload
+    )

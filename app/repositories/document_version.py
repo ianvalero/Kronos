@@ -2,10 +2,19 @@ from pathlib import Path
 from sqlmodel import Session, select
 from sqlalchemy.orm import selectinload
 
-from app.models.document import DocumentVersionDB
-from app.schemas.document import DocumentVersionCreate
+from app.models.document_version import DocumentVersionDB
+from app.schemas.document_version import DocumentVersionCreate
 
 class DocumentVersionRepository:
+    def get_document_versions(self, session: Session, document_id: int) -> list[DocumentVersionDB]:
+        statement = (
+            select(DocumentVersionDB)
+            .where(DocumentVersionDB.document_id == document_id)
+            .order_by(DocumentVersionDB.id.desc())
+        )
+
+        return session.exec(statement).all()
+
     def get_document_completed_versions(self, session: Session, document_id: int) -> list[DocumentVersionDB]:
         statement = (
             select(DocumentVersionDB)
