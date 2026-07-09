@@ -1,11 +1,13 @@
+from typing import TYPE_CHECKING
 from datetime import datetime
 from sqlmodel import SQLModel
-from typing import Any
+
+if TYPE_CHECKING:
+    from app.schemas.document_version import DocumentVersionRead
 
 class DocumentRead(SQLModel):
     id: int
-    team: str
-    collection: str
+    collection_id: int
     description: str
     created_at: datetime
     deleted_at: datetime | None = None
@@ -13,41 +15,8 @@ class DocumentRead(SQLModel):
     documents_versions: list["DocumentVersionRead"] = list()
 
 
-class DocumentVersionRead(SQLModel):
-    id: int
-    document_id: int
-    filename: str
-    original_filename: str
-    file_path: str
-    file_size: int
-    mime_type: str
-    uploaded_by: str
-    uploaded_at: datetime
-    task_id: str | None = None
-    qdrant_point_ids: list[str] | None
-    attempts: int
-    error_message: str | None
-    status: str
-
-
-class DocumentVersionTaskRead(SQLModel):
-    task_id: str
-    status: str
-    result: Any | None = None
-
-
 class DocumentCreate(SQLModel):
-    team: str
-    collection: str
     description: str
-
-
-class DocumentVersionCreate(SQLModel):
-    saved_file_path: str
-    filename: str
-    uploaded_by: str
-    file_size: int
-    mime_type: str
 
 
 class DocumentDelete(SQLModel):

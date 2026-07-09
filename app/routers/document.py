@@ -1,129 +1,83 @@
+from app.services import DocumentService
 from fastapi import APIRouter, HTTPException, Depends, status, UploadFile, File, Form
 from sqlmodel import Session
 
 from app.database import get_session
-import app.utils.document as util
-import app.dependencies.services as dependencies
+import app.dependencies.services as dependencies_services
+import app.dependencies.infrastructure as dependencies_infrastructure
+import app.dependencies.auth as dependencies_auth
 import app.schemas.document as DocumentSchema
+from app.schemas.user import User
 
-router = APIRouter()
+router = APIRouter(tags=["documents"])
 
 @router.get(
-"/",
-    tags=["documents"],
+"/{collection_id}/documents",
     response_model=list[DocumentSchema.DocumentRead],
-    summary="Get all documents")
+    summary="Get all documents in a collection")
 async def get_documents(
+    collection_id: int,
     session: Session = Depends(get_session),
-    sql_service = Depends(dependencies.get_sql_service)
+    user: User = Depends(dependencies_auth.get_current_user),
+    document_service: DocumentService = Depends(dependencies_services.get_document_service)
 ):
-    return sql_service.get_documents(session)
+    return await document_service.get_documents(session=session, user=user, collection_id=collection_id)
 
 @router.get(
-"/{document_id}",
-    tags=["documents"],
+"/{collection_id}/documents/{document_id}",
     response_model=DocumentSchema.DocumentRead,
     summary="Get document by id")
 async def get_document(
+    collection_id: int,
     document_id: int,
     session: Session = Depends(get_session),
-    sql_service = Depends(dependencies.get_sql_service)
+    user: User = Depends(dependencies_auth.get_current_user),
+    document_service: DocumentService = Depends(dependencies_services.get_document_service)
 ):
-    document = sql_service.get_document(document_id, session)
-    if not document:
-        raise HTTPException(status_code=404, detail="Document not found")
-
-    return document
-
-@router.get(
-"/tasks/{task_id}",
-    tags=["documents"],
-    response_model=DocumentSchema.DocumentVersionTaskRead,
-    summary="Get document by id")
-async def get_task(
-    task_id: str,
-    celery_service = Depends(dependencies.get_celery_service)
-):
-    task = celery_service.get_task_status(task_id=task_id)
-    if not task:
-        raise HTTPException(status_code=404, detail="Task not found")
-
-    return task
+    return await document_service.get_document(
+        session=session,
+        user=user,
+        collection_id=collection_id,
+        document_id=document_id
+    )
 
 @router.post(
-"/",
-    tags=["documents"],
+"/{collection_id}/documents/",
     response_model=DocumentSchema.DocumentRead,
     status_code=status.HTTP_201_CREATED,
-    summary="Upload document")
+    summary="Upload new document")
 async def upload_document(
+    collection_id: int,
     payload: DocumentSchema.DocumentCreate,
     session: Session = Depends(get_session),
-    sql_service = Depends(dependencies.get_sql_service),
-    qdrant_service = Depends(dependencies.get_qdrant_service),
+    user: User = Depends(dependencies_auth.get_current_user),
+    document_service: DocumentService = Depends(dependencies_services.get_document_service)
 ):
-    if not qdrant_service.collection_exists(collection_name=payload.collection):
-        raise HTTPException(status_code=404, detail=f"Collection {payload.collection} not found")
-
-    document = sql_service.add_document(payload, session)
-    return document
-
-@router.post(
-"/{document_id}",
-    tags=["documents"],
-    response_model=DocumentSchema.DocumentVersionRead,
-    summary="Upload document version")
-async def upload_document_version(
-    document_id: int,
-    file: UploadFile = File(...),
-    uploaded_by: str = Form(None),
-    session: Session = Depends(get_session),
-    sql_service = Depends(dependencies.get_sql_service),
-    celery_service = Depends(dependencies.get_celery_service)
-):
-    payload = DocumentSchema.DocumentVersionCreate(
-        saved_file_path=await util.save_document_version_file(file=file),
-        filename=file.filename,
-        uploaded_by=uploaded_by,
-        file_size=file.size,
-        mime_type=file.content_type
+    return await document_service.add_document(
+        session=session,
+        user=user,
+        collection_id=collection_id,
+        document=payload
     )
-
-    document_version = sql_service.add_document_version(
-        document_id=document_id,
-        document_version=payload,
-        session=session
-    )
-
-    try:
-        task_id = celery_service.update_document_version(document_version_id=document_version.id)
-        document_version = sql_service.set_document_version_task_id(
-            document_version_id=document_version.id,
-            task_id=task_id,
-            session=session
-        )
-    except Exception as err:
-        document_version = sql_service.update_document_version_status(
-            document_version_id=document_version.id,
-            status="failed",
-            session=session,
-            error_message=f"No se pudo encolar la tarea de procesamiento: {err}",
-        )
-
-    return document_version
 
 @router.delete(
 "/{document_id}",
-    tags=["documents"],
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete document")
 async def delete_document(
+    collection_id: int,
     document_id: int,
     payload: DocumentSchema.DocumentDelete,
     session: Session = Depends(get_session),
-    sql_service = Depends(dependencies.get_sql_service),
-    qdrant_service = Depends(dependencies.get_qdrant_service),
+    user: User = Depends(dependencies_auth.get_current_user),
+    document_service: DocumentService = Depends(dependencies_services.get_document_service)
 ):
+    return await document_service.delete_document()
+
+
+
+
+
     document = sql_service.get_document(document_id, session)
     if not document:
         raise HTTPException(status_code=404, detail="Document not found")

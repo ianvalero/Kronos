@@ -6,10 +6,13 @@ from app.models.document import DocumentDB, DocumentVersionDB
 from app.schemas.document import DocumentCreate, DocumentDelete
 
 class DocumentRepository:
-    def get_documents(self, session: Session) -> list[DocumentDB]:
+    def get_documents(self, session: Session, collection_id: int) -> list[DocumentDB]:
         statement = (
             select(DocumentDB)
-            .where(DocumentDB.deleted_at.is_(None))
+            .where(
+                DocumentDB.collection_id == collection_id,
+                DocumentDB.deleted_at.is_(None)
+            )
             .options(selectinload(
                 DocumentDB.documents_versions.and_(DocumentVersionDB.status == "completed"))
             )
@@ -17,14 +20,15 @@ class DocumentRepository:
 
         return session.exec(statement).all()
 
-    def get_document(self, session: Session, document_id: int) -> DocumentDB | None:
+    def get_document(self, session: Session, collection_id: int, document_id: int) -> DocumentDB | None:
         statement = (
             select(DocumentDB)
-            .options(selectinload(DocumentDB.documents_versions))
             .where(
+                DocumentDB.collection_id == collection_id,
                 DocumentDB.id == document_id,
                 DocumentDB.deleted_at.is_(None)
             )
+            .options(selectinload(DocumentDB.documents_versions))
         )
 
         return session.exec(statement).first()

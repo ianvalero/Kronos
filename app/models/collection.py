@@ -1,6 +1,10 @@
+from typing import TYPE_CHECKING
 from sqlalchemy import Column, ARRAY, String
-from sqlmodel import SQLModel, Field
+from sqlmodel import SQLModel, Field, Relationship
 from datetime import datetime
+
+if TYPE_CHECKING:
+    from app.models.document import DocumentDB
 
 
 class CollectionDB(SQLModel, table=True):
@@ -13,3 +17,5 @@ class CollectionDB(SQLModel, table=True):
     roles: list[str] = Field(sa_column=Column(ARRAY(String)))
     created_at: datetime = Field(default_factory=datetime.now)
     deleted_at: datetime | None = None
+
+    documents: list["DocumentDB"] = Relationship(back_populates="collection")

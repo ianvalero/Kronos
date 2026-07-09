@@ -24,7 +24,12 @@ async def lifespan(app: FastAPI):
     app.state.qdrant_gateway = infrastructure.QdrantGateway()
     app.state.redis_client = infrastructure.RedisClient()
     app.state.celery_client = infrastructure.CeleryClient()
-    app.state.collection_service = services.CollectionService()
+
+    app.state.collection_service = services.CollectionService(qdrant_gateway=app.state.qdrant_gateway)
+    app.state.document_service = services.DocumentService(
+        qdrant_gateway=app.state.qdrant_gateway,
+        collection_service=app.state.collection_service
+    )
     app.state.user_service = services.UserService()
 
     yield
@@ -42,11 +47,30 @@ app = FastAPI(
 
 @app.exception_handler(AppException)
 async def app_exception_handler(request: Request, exc: AppException):
+    logger.exception(
+        "Unhandled error on %s %s",
+        request.method,
+        request.url.path,
+    )
+
     return JSONResponse(
         status_code=exc.status_code,
         content={"detail": exc.detail},
     )
 
-app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
-app.include_router(collection.router, prefix="/api/collections", tags=["collections"])
-app.include_router(document.router, prefix="/api/documents", tags=["documents"])
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.exception(
+        "Unhandled error on %s %s",
+        request.method,
+        request.url.path,
+    )
+
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal Server Error"},
+    )
+
+app.include_router(auth.router, prefix="/api/auth")
+app.include_router(collection.router, prefix="/api/collections")
+app.include_router(document.router, prefix="/api/collections")
