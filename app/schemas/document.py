@@ -1,9 +1,7 @@
-from typing import TYPE_CHECKING
 from datetime import datetime
 from sqlmodel import SQLModel
 
-if TYPE_CHECKING:
-    from app.schemas.document_version import DocumentVersion
+from app.schemas.document_version import DocumentVersion
 
 
 class DocumentRead(SQLModel):
@@ -13,7 +11,7 @@ class DocumentRead(SQLModel):
     created_at: datetime
     deleted_at: datetime | None = None
     deleted_by: str | None = None
-    documents_versions: list["DocumentVersion"] = list()
+    documents_versions: list[DocumentVersion] = list()
 
 
 class DocumentCreate(SQLModel):

@@ -2,7 +2,8 @@ from datetime import datetime
 from sqlmodel import Session, select
 from sqlalchemy.orm import selectinload
 
-from app.models.document import DocumentDB, DocumentVersionDB
+from app.models.document import DocumentDB
+from app.models.document_version import DocumentVersionDB
 from app.schemas.document import DocumentCreate, DocumentDelete
 
 class DocumentRepository:

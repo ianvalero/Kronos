@@ -12,8 +12,8 @@ class QdrantGateway:
     def __init__(self):
         self.logger = logging.getLogger(f"app.{__name__}")
 
-        self._qdrant_client = QdrantClient(url=settings.qdrant.qdrant_url)
-        self._qdrant_aclient = AsyncQdrantClient(url=settings.qdrant.qdrant_url)
+        self._qdrant_client = QdrantClient(url=settings.qdrant.url)
+        self._qdrant_aclient = AsyncQdrantClient(url=settings.qdrant.url)
 
         self._index_cache: dict = {}
         self.logger.info("Qdrant Client initialized")

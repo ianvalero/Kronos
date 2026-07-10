@@ -5,6 +5,7 @@ from app.config.settings import settings
 from app.database import get_session
 from app.schemas.user import UserSSO, UserLoginResponse
 from app.services.user_service import UserService
+import app.dependencies.services as dependencies_services
 from app.security.automation import require_automation
 
 router = APIRouter()
@@ -19,6 +20,6 @@ router = APIRouter()
 async def login(
     body: UserSSO,
     session: Session = Depends(get_session),
-    user_service: UserService = Depends(dependencies.get_user_service),
+    user_service: UserService = Depends(dependencies_services.get_user_service),
 ):
     return user_service.authenticate_sso_user(session=session, user=body)

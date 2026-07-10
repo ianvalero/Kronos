@@ -30,7 +30,10 @@ async def lifespan(app: FastAPI):
         qdrant_gateway=app.state.qdrant_gateway,
         collection_service=app.state.collection_service
     )
-    app.state.document_version_service = services.DocumentVersionService()
+    app.state.document_version_service = services.DocumentVersionService(
+        celery_client=app.state.celery_client,
+        document_service=app.state.document_service
+    )
     app.state.user_service = services.UserService()
 
     yield

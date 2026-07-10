@@ -2,7 +2,7 @@ import json
 import redis
 import logging
 
-from app.models.document import DocumentVersionDB
+from app.models.document_version import DocumentVersionDB
 from app.config.settings import settings
 
 class RedisClient:
