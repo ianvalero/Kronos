@@ -57,6 +57,7 @@ class QdrantSettings(BaseSettings):
 
 class Settings(BaseSettings):
     log_level: str = "INFO"
+    sql_log: bool = False
     proxy_url: str | None = None
     qdrant_url: str
     postgresql_url: str

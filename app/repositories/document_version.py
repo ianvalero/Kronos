@@ -63,7 +63,7 @@ class DocumentVersionRepository:
         document_version_id: int,
         task_id: str
     ) -> DocumentVersionDB | None:
-        document_version = self.get_document_version(document_version_id, session)
+        document_version = self.get_document_version(session=session, document_version_id=document_version_id)
         if not document_version:
             return None
 
@@ -81,7 +81,7 @@ class DocumentVersionRepository:
         error_message: str | None = None,
         increment_attempts: bool = False,
     ) -> DocumentVersionDB | None:
-        document_version = self.get_document_version(document_version_id, session)
+        document_version = self.get_document_version(session=session, document_version_id=document_version_id)
         if not document_version:
             return None
 

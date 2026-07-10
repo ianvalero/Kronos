@@ -96,7 +96,7 @@ class DocumentService:
         active_version = document_db.documents_versions[0] if document_db.documents_versions else None
         if active_version and active_version.qdrant_point_ids:
             await self.qdrant.delete_points(
-                collection_name=document_db.collection,
+                collection_name=document_db.collection.qdrant_name,
                 point_ids=active_version.qdrant_point_ids
             )
 

@@ -69,7 +69,7 @@ def process_document_version(self, document_version_id: int):
             logger.error(f"Document version {document_version_id} not found in database")
             return False
 
-        collection_name = document_version.document.collection
+        collection_name = document_version.document.collection.qdrant_name
 
         try:
             document_version_repository.update_document_version_status(

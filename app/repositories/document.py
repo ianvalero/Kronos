@@ -42,7 +42,7 @@ class DocumentRepository:
         return document
 
     def delete_document(self, session: Session, document_id: int, body: DocumentDelete) -> bool:
-        document = self.get_document(document_id, session)
+        document = self.get_document(session=session, document_id=document_id)
         if not document:
             return False
 

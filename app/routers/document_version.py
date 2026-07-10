@@ -52,18 +52,18 @@ async def get_document_version(
     summary="Upload new document version")
 async def upload_document_version(
     document_id: int,
-    payload: DocumentVersionSchema.DocumentVersionPayload,
+    payload: DocumentVersionSchema.DocumentVersionPayload = Form(...),
     file: UploadFile = File(...),
     session: Session = Depends(get_session),
     user: User = Depends(dependencies_auth.get_current_user),
-    document_version_service: DocumentVersionService = Depends(dependencies_services.get_document_service),
+    document_version_service: DocumentVersionService = Depends(dependencies_services.get_document_version_service),
 ):
     return await document_version_service.add_document_version(
         session=session,
         user=user,
         document_id=document_id,
         file=file,
-        document_version=payload
+        new_document_version=payload
     )
 
 @router.get(

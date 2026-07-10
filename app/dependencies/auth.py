@@ -15,6 +15,6 @@ def get_current_user(
     return user_service.get_current_user(session, x_api_key)
 
 def require_admin(current_user: UserDB = Depends(get_current_user)) -> UserDB:
-    if current_user.is_admin not in current_user.roles:
+    if not current_user.is_admin:
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Administrator permissions are required")
     return current_user
