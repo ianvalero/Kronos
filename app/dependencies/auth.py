@@ -1,4 +1,5 @@
-from fastapi import Header, Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Security
+from fastapi.security import APIKeyHeader
 from sqlmodel import Session
 
 from app.database import get_session
@@ -7,8 +8,10 @@ from app.dependencies.services import get_user_service
 from app.schemas.user import User
 from app.models.user import UserDB
 
+api_key_header = APIKeyHeader(name="X-Api-Key", auto_error=False)
+
 def get_current_user(
-    x_api_key: str = Header(...),
+    x_api_key: str = Security(api_key_header),
     session: Session = Depends(get_session),
     user_service: UserService = Depends(get_user_service),
 ) -> User:

@@ -36,8 +36,8 @@ def init_worker_connections(**kwargs):
     qdrant_service = QdrantGateway()
     document_version_repository = DocumentVersionRepository()
     embedding_model = OpenAIEmbedding(
-        model_name=settings.embedding_model_name,
-        api_base=settings.embedding_base_url,
+        model_name=settings.embedding.model_name,
+        api_base=settings.embedding.base_url,
         api_key="EMPTY",
         embed_batch_size=32,
     )
@@ -135,8 +135,8 @@ async def _embed_and_upload(file_path: str, collection_name: str, document_versi
     documents = SimpleDirectoryReader(input_files=[file_path]).load_data()
 
     splitter = SentenceSplitter(
-        chunk_size=settings.embedding_chunk_size,
-        chunk_overlap=settings.embedding_chunk_overlap,
+        chunk_size=settings.embedding.chunk_size,
+        chunk_overlap=settings.embedding.chunk_overlap,
     )
     nodes = splitter.get_nodes_from_documents(documents)
 

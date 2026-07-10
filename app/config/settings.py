@@ -1,8 +1,27 @@
 from pathlib import Path
+from typing import Literal
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field, model_validator
 
 from app.schemas.collection import Distance
+
+
+class PostgresSettings(BaseSettings):
+    host: str
+    port: int = 5432
+    user: str
+    password: str
+    db: str
+    postgres_url: str | None = None
+
+    model_config = SettingsConfigDict(
+        env_prefix="POSTGRESQL_",
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",
+    )
 
 
 class RedisSettings(BaseSettings):
@@ -21,6 +40,7 @@ class RedisSettings(BaseSettings):
         extra="ignore",
     )
 
+
 class CelerySettings(BaseSettings):
     broker_url: str | None = None
     result_backend: str | None = None
@@ -38,7 +58,9 @@ class CelerySettings(BaseSettings):
         extra="ignore",
     )
 
+
 class QdrantSettings(BaseSettings):
+    url: str
     size: int                               # Número de dimensiones de cada vector - ¡Tiene que ser lo que indique el modelo de embbeding!
     distance: Distance = Distance.COSINE    # Define como se calcula la similitud entre vectores
     shard_number: int = 1                   # Divide la colección en particiones
@@ -55,21 +77,35 @@ class QdrantSettings(BaseSettings):
         extra="ignore",
     )
 
+
+class EmbeddingSettings(BaseSettings):
+    model_name: str
+    base_url: str
+    chunk_size: int
+    chunk_overlap: int
+
+    model_config = SettingsConfigDict(
+        env_prefix="EMBEDDING_",
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",
+    )
+
+
 class Settings(BaseSettings):
+    environment: Literal["local", "staging", "production"] = "local"
     log_level: str = "INFO"
     sql_log: bool = False
+    automation_api_token: str
     proxy_url: str | None = None
-    qdrant_url: str
-    postgresql_url: str
-    embedding_model_name: str
-    embedding_base_url: str
-    embedding_chunk_size: int
-    embedding_chunk_overlap: int
     files_storage_path: str = "files/"
 
+    postgres: PostgresSettings = Field(default_factory=PostgresSettings)
     redis: RedisSettings = Field(default_factory=RedisSettings)
     celery: CelerySettings = Field(default_factory=CelerySettings)
     qdrant: QdrantSettings = Field(default_factory=QdrantSettings)
+    embedding: EmbeddingSettings = Field(default_factory=EmbeddingSettings)
 
     @model_validator(mode="after")
     def assemble_celery_urls(self):
@@ -82,6 +118,12 @@ class Settings(BaseSettings):
         if not self.celery.result_backend:
             self.celery.result_backend = f"{base_redis_url}/3"
 
+        return self
+
+    @model_validator(mode="after")
+    def assemble_postgres_urls(self):
+        self.postgres.postgres_url = (f"postgresql+psycopg2://{self.postgres.user}:{self.postgres.password}@"
+                                      f"{self.postgres.host}:{self.postgres.port}/{self.postgres.db}")
         return self
 
     @model_validator(mode="after")

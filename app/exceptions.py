@@ -5,6 +5,9 @@ class AppException(Exception):
         self.detail = detail
 
 
+class InvalidAutomationTokenError(AppException):
+    status_code = 401
+
 class InvalidApiKeyError(AppException):
     status_code = 401
 

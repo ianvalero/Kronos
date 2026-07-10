@@ -59,7 +59,7 @@ class DocumentVersionService:
         if not document_version_db or document_version_db.document_id != document_id:
             raise DocumentVersionNotFoundError(f"Version {document_version_id} not found in document {document_id}")
 
-        return DocumentVersionSchema.DocumentVersion(**document_version_db.model_dump())
+        return DocumentVersionSchema.DocumentVersionDetail(**document_version_db.model_dump())
 
     async def add_document_version(
         self,
