@@ -58,7 +58,8 @@ class CollectionService:
             qdrant_name=qdrant_name,
             gulax_name=new_collection.name,
             description=new_collection.description,
-            roles=new_collection.roles
+            roles=new_collection.roles,
+            created_by=user.username
         )
         self.collection_repository.create_collection(session=session, collection=collection_db)
 
@@ -94,7 +95,11 @@ class CollectionService:
         if not user.is_admin and not set(collection_db.roles).issubset(set(user.roles)):
             raise CollectionPermissionError("User does not have permission to delete a collection in this group.")
 
-        self.collection_repository.delete_collection(session=session, collection_id=collection_id)
+        self.collection_repository.delete_collection(
+            session=session,
+            collection=collection_db,
+            deleted_by=user.username
+        )
         await self.qdrant.delete_collection(collection_name=collection_db.qdrant_name)
 
         session.commit()
@@ -112,8 +117,12 @@ class CollectionService:
             qdrant_name=collection_db.qdrant_name,
             gulax_name=collection_db.gulax_name,
             description=collection_db.description,
-            created_at=collection_db.created_at,
+            roles=collection_db.roles,
             status=collection_qdrant["status"],
             points_count=collection_qdrant["points_count"],
-            vectors=collection_qdrant["vectors"]
+            vectors=collection_qdrant["vectors"],
+            created_at=collection_db.created_at,
+            created_by=collection_db.created_by,
+            deleted_at=collection_db.deleted_at,
+            deleted_by=collection_db.deleted_by
         )

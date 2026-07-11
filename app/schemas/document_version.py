@@ -22,18 +22,6 @@ class DocumentVersionDetail(DocumentVersion):
     attempts: int
 
 
-class DocumentVersionPayload(SQLModel):
-    uploaded_by: str
-
-
-class DocumentVersionCreate(SQLModel):
-    saved_file_path: str
-    filename: str
-    uploaded_by: str
-    file_size: int
-    mime_type: str
-
-
 class DocumentVersionTaskRead(SQLModel):
     task_id: str
     status: str

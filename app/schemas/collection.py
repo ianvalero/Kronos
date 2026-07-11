@@ -42,10 +42,14 @@ class CollectionRead(BaseModel):
     qdrant_name: str
     gulax_name: str
     description: str | None
+    roles: list[str]
     status: str
     points_count: int
     vectors: CollectionVectors
     created_at: datetime
+    created_by: str
+    deleted_at: datetime | None
+    deleted_by: str | None
 
 
 class CollectionsResponse(BaseModel):

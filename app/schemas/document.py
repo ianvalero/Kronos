@@ -16,7 +16,3 @@ class DocumentRead(SQLModel):
 
 class DocumentCreate(SQLModel):
     description: str
-
-
-class DocumentDelete(SQLModel):
-    deleted_by: str

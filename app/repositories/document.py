@@ -4,7 +4,7 @@ from sqlalchemy.orm import selectinload
 
 from app.models.document import DocumentDB
 from app.models.document_version import DocumentVersionDB
-from app.schemas.document import DocumentCreate, DocumentDelete
+from app.schemas.document import DocumentCreate
 
 class DocumentRepository:
     def get_documents(self, session: Session, collection_id: int) -> list[DocumentDB]:
@@ -33,22 +33,13 @@ class DocumentRepository:
 
         return session.exec(statement).first()
 
-    def add_document(self, session: Session, document: DocumentCreate) -> DocumentDB:
-        document: DocumentDB = DocumentDB(**document.model_dump())
-
+    def add_document(self, session: Session, document: DocumentDB) -> DocumentDB:
         session.add(document)
-        session.commit()
-        session.refresh(document)
-
+        session.flush()
         return document
 
-    def delete_document(self, session: Session, document_id: int, body: DocumentDelete) -> bool:
-        document = self.get_document(session=session, document_id=document_id)
-        if not document:
-            return False
-
+    def delete_document(self, session: Session, document: DocumentDB, deleted_by: str) -> bool:
         document.deleted_at = datetime.now()
-        document.deleted_by = body.deleted_by
-        session.commit()
-
+        document.deleted_by = deleted_by
+        session.flush()
         return True

@@ -28,3 +28,6 @@ class CeleryTaskEnqueueError(AppException):
 
 class CeleryTaskNotFoundError(AppException):
     status_code = 404
+
+class QdrantOperationError(AppException):
+    status_code = 503

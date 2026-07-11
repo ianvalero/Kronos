@@ -5,7 +5,7 @@ from app.database import get_session
 import app.dependencies.services as dependencies_services
 import app.dependencies.auth as dependencies_auth
 from app.services import DocumentService
-from app.schemas.document import DocumentRead, DocumentCreate, DocumentDelete
+from app.schemas.document import DocumentRead, DocumentCreate
 from app.schemas.user import User
 
 router = APIRouter(tags=["documents"])
@@ -66,7 +66,6 @@ async def upload_document(
 async def delete_document(
     collection_id: int,
     document_id: int,
-    payload: DocumentDelete,
     session: Session = Depends(get_session),
     user: User = Depends(dependencies_auth.get_current_user),
     document_service: DocumentService = Depends(dependencies_services.get_document_service)
@@ -75,6 +74,5 @@ async def delete_document(
         session=session,
         user=user,
         collection_id=collection_id,
-        document_id=document_id,
-        document=payload
+        document_id=document_id
     )

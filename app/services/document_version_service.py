@@ -1,5 +1,6 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
+from pathlib import Path
 import os
 import uuid
 import aiofiles
@@ -11,7 +12,8 @@ from app.config.settings import settings
 from app.services import DocumentService
 from app.repositories.document_version import DocumentVersionRepository
 from app.infrastructure.celery_client import CeleryClient
-import app.schemas.document_version as DocumentVersionSchema
+from app.models.document_version import DocumentVersionDB
+from app.schemas.document_version import DocumentVersion, DocumentVersionDetail
 from app.schemas.user import User
 from app.exceptions import DocumentVersionNotFoundError, CeleryTaskEnqueueError
 
@@ -32,7 +34,7 @@ class DocumentVersionService:
         session: Session,
         user: User,
         document_id: int
-    ) -> list[DocumentVersionSchema.DocumentVersion]:
+    ) -> list[DocumentVersion]:
         await self.__check_document_permissions(session=session, user=user, document_id=document_id)
         document_versions_db = self.document_version_repository.get_document_versions(
             session=session,
@@ -40,7 +42,7 @@ class DocumentVersionService:
         )
 
         return [
-            DocumentVersionSchema.DocumentVersion(**document_version_db.model_dump())
+            DocumentVersion(**document_version_db.model_dump())
             for document_version_db in document_versions_db
         ]
 
@@ -50,7 +52,7 @@ class DocumentVersionService:
         user: User,
         document_id: int,
         document_version_id: int
-    ) -> DocumentVersionSchema.DocumentVersionDetail:
+    ) -> DocumentVersionDetail:
         await self.__check_document_permissions(session=session, user=user, document_id=document_id)
         document_version_db = self.document_version_repository.get_document_version(
             session=session,
@@ -60,48 +62,47 @@ class DocumentVersionService:
         if not document_version_db or document_version_db.document_id != document_id:
             raise DocumentVersionNotFoundError(f"Version {document_version_id} not found in document {document_id}")
 
-        return DocumentVersionSchema.DocumentVersionDetail(**document_version_db.model_dump())
+        return DocumentVersionDetail(**document_version_db.model_dump())
 
     async def add_document_version(
         self,
         session: Session,
         user: User,
         document_id: int,
-        file: UploadFile,
-        new_document_version: DocumentVersionSchema.DocumentVersionPayload
-    ) -> DocumentVersionSchema.DocumentVersionDetail:
+        file: UploadFile
+    ) -> DocumentVersionDetail:
         await self.__check_document_permissions(session=session, user=user, document_id=document_id)
 
-        payload = DocumentVersionSchema.DocumentVersionCreate(
-            saved_file_path=await self.__save_document_version_file(file=file),
-            filename=file.filename,
-            uploaded_by=new_document_version.uploaded_by,
+        document_version_path = await self.__save_document_version_file(file=file)
+        document_version_db: DocumentVersionDB = DocumentVersionDB(
+            document_id=document_id,
+            filename=Path(document_version_path).name,
+            original_filename=file.filename,
+            file_path=document_version_path,
             file_size=file.size,
-            mime_type=file.content_type
+            mime_type=file.content_type,
+            uploaded_by=user.username,
         )
 
         document_version_db = self.document_version_repository.add_document_version(
             session=session,
-            document_id=document_id,
-            document_version=payload
+            document_version=document_version_db
         )
 
         try:
             task_id = self.celery.update_document_version(document_version_id=document_version_db.id)
             document_version_db = self.document_version_repository.set_document_version_task_id(
                 session=session,
-                document_version_id=document_version_db.id,
+                document_version=document_version_db,
                 task_id=task_id
             )
 
         except Exception as err:
-            self.document_version_repository.update_document_version_status(
-                document_version_id=document_version_db.id,
-                status="failed",
+            self.document_version_repository.update_version_as_failed(
                 session=session,
+                document_version=document_version_db,
                 error_message=f"Failed to enqueue Celery task to process a new document"
-                              f" version {document_version_db.id} for document {document_id}",
-                increment_attempts=True,
+                              f" version {document_version_db.id} for document {document_id}"
             )
             session.commit()
             raise CeleryTaskEnqueueError(
@@ -111,7 +112,7 @@ class DocumentVersionService:
         session.commit()
         session.refresh(document_version_db)
 
-        return DocumentVersionSchema.DocumentVersionDetail(**document_version_db.model_dump())
+        return DocumentVersionDetail(**document_version_db.model_dump())
 
     async def __save_document_version_file(self, file: UploadFile):
         original_name, extension = os.path.splitext(os.path.basename(file.filename))

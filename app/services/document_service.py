@@ -7,9 +7,9 @@ from app.services import CollectionService
 from app.repositories.document import DocumentRepository
 from app.models.document import DocumentDB
 from app.infrastructure.qdrant_gateway import QdrantGateway
-from app.schemas.document import DocumentRead, DocumentCreate, DocumentDelete
+from app.schemas.document import DocumentRead, DocumentCreate
 from app.schemas.user import User
-from app.exceptions import DocumentNotFoundError
+from app.exceptions import DocumentNotFoundError, QdrantOperationError
 
 
 class DocumentService:
@@ -71,8 +71,8 @@ class DocumentService:
             collection_id=collection_id
         )
         document_db: DocumentDB = DocumentDB(**document.model_dump(), collection_id=collection.id)
+        self.document_repository.add_document(session=session, document=document_db)
 
-        session.add(document_db)
         session.commit()
         session.refresh(document_db)
 
@@ -83,8 +83,7 @@ class DocumentService:
         session: Session,
         user: User,
         collection_id: int,
-        document_id: int,
-        document: DocumentDelete
+        document_id: int
     ):
         document_db = await self.__fetch_document(
             session=session,
@@ -93,19 +92,23 @@ class DocumentService:
             document_id=document_id
         )
 
+        self.document_repository.delete_document(session=session, document=document_db, deleted_by=user.username)
+
         active_version = document_db.documents_versions[0] if document_db.documents_versions else None
-        if active_version and active_version.qdrant_point_ids:
-            await self.qdrant.delete_points(
-                collection_name=document_db.collection.qdrant_name,
-                point_ids=active_version.qdrant_point_ids
-            )
+        try:
+            if active_version and active_version.qdrant_point_ids:
+                await self.qdrant.delete_points(
+                    collection_name=document_db.collection.qdrant_name,
+                    point_ids=active_version.qdrant_point_ids
+                )
 
-        document_db.deleted_at = datetime.now()
-        document_db.deleted_by = document.deleted_by
-        session.commit()
-
-        self.logger.info(f"Document {document_id} marked as deleted in database")
-        return True
+            session.commit()
+            self.logger.info(f"Document {document_id} marked as deleted in database")
+            return True
+        except Exception as err:
+            session.rollback()
+            self.logger.exception(f"Error deleting document {document_id} from Qdrant")
+            raise QdrantOperationError(f"Error deleting document {document_id} from Qdrant") from err
 
     async def __fetch_document(self, session: Session, user: User, collection_id: int, document_id: int) -> DocumentDB:
         await self.collection_service.get_collection(

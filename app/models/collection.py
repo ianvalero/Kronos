@@ -16,6 +16,8 @@ class CollectionDB(SQLModel, table=True):
     description: str | None = Field(default=None)
     roles: list[str] = Field(sa_column=Column(ARRAY(String)))
     created_at: datetime = Field(default_factory=datetime.now)
+    created_by: str
     deleted_at: datetime | None = None
+    deleted_by: str | None = None
 
     documents: list["DocumentDB"] = Relationship(back_populates="collection")

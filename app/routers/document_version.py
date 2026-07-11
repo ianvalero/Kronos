@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends, status, UploadFile, File, Form
+from fastapi import APIRouter, Depends, UploadFile, File
 from sqlmodel import Session
 
 from app.database import get_session
@@ -52,7 +52,6 @@ async def get_document_version(
     summary="Upload new document version")
 async def upload_document_version(
     document_id: int,
-    payload: DocumentVersionSchema.DocumentVersionPayload = Form(...),
     file: UploadFile = File(...),
     session: Session = Depends(get_session),
     user: User = Depends(dependencies_auth.get_current_user),
@@ -62,8 +61,7 @@ async def upload_document_version(
         session=session,
         user=user,
         document_id=document_id,
-        file=file,
-        new_document_version=payload
+        file=file
     )
 
 @router.get(

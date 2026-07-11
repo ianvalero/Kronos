@@ -36,16 +36,12 @@ class CollectionRepository:
         return session.exec(statement).first()
 
     def create_collection(self, session: Session, collection: CollectionDB) -> CollectionDB:
-        collection = CollectionDB(**collection.model_dump())
         session.add(collection)
         session.flush()
         return collection
 
-    def delete_collection(self, session: Session, collection_id: int) -> bool:
-        collection = self.get_collection(session, collection_id)
-        if not collection:
-            return False
-
+    def delete_collection(self, session: Session, collection: CollectionDB, deleted_by: str) -> bool:
         collection.deleted_at = datetime.now()
+        collection.deleted_by = deleted_by
         session.flush()
         return True

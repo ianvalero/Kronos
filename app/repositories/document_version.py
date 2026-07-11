@@ -3,7 +3,6 @@ from sqlmodel import Session, select
 from sqlalchemy.orm import selectinload
 
 from app.models.document_version import DocumentVersionDB
-from app.schemas.document_version import DocumentVersionCreate
 
 class DocumentVersionRepository:
     def get_document_versions(self, session: Session, document_id: int) -> list[DocumentVersionDB]:
@@ -15,12 +14,12 @@ class DocumentVersionRepository:
 
         return session.exec(statement).all()
 
-    def get_document_completed_versions(self, session: Session, document_id: int) -> list[DocumentVersionDB]:
+    def get_document_active_versions(self, session: Session, document_id: int) -> list[DocumentVersionDB]:
         statement = (
             select(DocumentVersionDB)
             .where(
                 DocumentVersionDB.document_id == document_id,
-                DocumentVersionDB.status == "completed",
+                DocumentVersionDB.status == "ACTIVE",
             )
             .order_by(DocumentVersionDB.id.desc())
         )
@@ -36,62 +35,63 @@ class DocumentVersionRepository:
 
         return session.exec(statement).first()
 
-    def add_document_version(
-        self,
-        session: Session,
-        document_id: int,
-        document_version: DocumentVersionCreate,
-    ) -> DocumentVersionDB:
-        document_version: DocumentVersionDB = DocumentVersionDB(
-            document_id=document_id,
-            filename=Path(document_version.saved_file_path).name,
-            original_filename=document_version.filename,
-            file_path=document_version.saved_file_path,
-            file_size=document_version.file_size,
-            mime_type=document_version.mime_type,
-            uploaded_by=document_version.uploaded_by,
-        )
-
+    def add_document_version(self, session: Session, document_version: DocumentVersionDB) -> DocumentVersionDB:
         session.add(document_version)
         session.flush()
-
         return document_version
 
     def set_document_version_task_id(
         self,
         session: Session,
-        document_version_id: int,
+        document_version: DocumentVersionDB,
         task_id: str
-    ) -> DocumentVersionDB | None:
-        document_version = self.get_document_version(session=session, document_version_id=document_version_id)
-        if not document_version:
-            return None
-
+    ) -> DocumentVersionDB:
         document_version.task_id = task_id
         session.flush()
-
         return document_version
 
-    def update_document_version_status(
+    def update_version_as_processing(
         self,
-        document_version_id: int,
-        status: str,
         session: Session,
-        qdrant_point_ids: list[str] | None = None,
-        error_message: str | None = None,
-        increment_attempts: bool = False,
-    ) -> DocumentVersionDB | None:
-        document_version = self.get_document_version(session=session, document_version_id=document_version_id)
-        if not document_version:
-            return None
-
-        document_version.status = status
-        document_version.error_message = error_message
-        if qdrant_point_ids is not None:
-            document_version.qdrant_point_ids = qdrant_point_ids
-        if increment_attempts:
-            document_version.attempts += 1
+        document_version: DocumentVersionDB
+    ) -> DocumentVersionDB:
+        document_version.status = "PROCESSING"
 
         session.flush()
+        return document_version
 
+    def update_version_as_active(
+        self,
+        session: Session,
+        document_version: DocumentVersionDB,
+        qdrant_point_ids: list[str]
+    ) -> DocumentVersionDB:
+        document_version.status = "ACTIVE"
+        document_version.qdrant_point_ids = qdrant_point_ids
+        document_version.error_message = None
+
+        session.flush()
+        return document_version
+
+    def update_version_as_failed(
+        self,
+        session: Session,
+        document_version: DocumentVersionDB,
+        error_message: str
+    ) -> DocumentVersionDB:
+        document_version.status = "FAILED"
+        document_version.error_message = error_message
+        document_version.attempts += 1
+
+        session.flush()
+        return document_version
+
+    def update_version_as_archived(
+        self,
+        session: Session,
+        document_version: DocumentVersionDB
+    ) -> DocumentVersionDB:
+        document_version.status = "ARCHIVED"
+
+        session.flush()
         return document_version
