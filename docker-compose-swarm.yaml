@@ -5,21 +5,18 @@ services:
   gulax-api:
     image: ${NEXUS_REGISTRY}/gulax-api:latest
     ports:
-      - "9060:9010"
+      - "9070:9000"
     networks:
-      - ia_ai-network
-    depends_on:
-      - postgres
-      - redis
+      - gulax-network
     env_file:
       - .env
     command: >
-      sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"
+      sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 9000"
     deploy:
       restart_policy:
         condition: any
 
-  postgres:
+  gulax-postgres:
     image: postgres:15
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
@@ -30,12 +27,12 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
-      - ia_ai-network
+      - gulax-network
     deploy:
       restart_policy:
         condition: any
 
-  redis:
+  gulax-redis:
     image: redis:7.4-alpine
     ports:
       - "6380:6379"
@@ -45,10 +42,8 @@ services:
       - .env
     volumes:
       - redis_data:/data
-    depends_on:
-      - postgres
     networks:
-      - ia_ai-network
+      - gulax-network
     command:
       - sh
       - -c
@@ -57,12 +52,10 @@ services:
       restart_policy:
         condition: any
 
-  celery-worker:
+  gulax-celery-worker:
     image: ${NEXUS_REGISTRY}/gulax-api:latest
     networks:
-      - ia_ai-network
-    depends_on:
-      - postgres
+      - gulax-network
     env_file:
       - .env
     command: celery -A app.celery_workers.celery_app worker --loglevel=info
@@ -75,6 +68,4 @@ volumes:
   redis_data:
 
 networks:
-  ia_ai-network:
-    external: true
-    name: ia-backend_ai-network
+  gulax-network:

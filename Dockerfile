@@ -19,6 +19,6 @@ COPY app ./app
 COPY migrations ./migrations
 COPY alembic.ini .
 
-EXPOSE 9010
+EXPOSE 9000
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "9010", "--workers", "4", "--loop", "uvloop"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "9000", "--workers", "4", "--loop", "uvloop"]
