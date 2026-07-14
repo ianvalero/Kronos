@@ -5,15 +5,16 @@ WORKDIR /app
 ARG HTTP_PROXY
 ARG HTTPS_PROXY
 
-ENV HTTP_PROXY=$HTTP_PROXY \
+COPY requirements.txt .
+
+RUN HTTP_PROXY=$HTTP_PROXY \
     HTTPS_PROXY=$HTTPS_PROXY \
     http_proxy=$HTTP_PROXY \
     https_proxy=$HTTPS_PROXY \
-    PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1
+    pip install --no-cache-dir -r requirements.txt
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
 
 COPY app ./app
 COPY migrations ./migrations
