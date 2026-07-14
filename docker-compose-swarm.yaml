@@ -8,6 +8,7 @@ services:
       - "9070:9000"
     networks:
       - gulax-network
+      - ai-network
     env_file:
       - .env
     command: >
@@ -69,3 +70,5 @@ volumes:
 
 networks:
   gulax-network:
+  ai-network:
+    external: true
