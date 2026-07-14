@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
 
-  gulax-api:
+  api:
     image: ${NEXUS_REGISTRY}/gulax-api:latest
     ports:
       - "9070:9000"
@@ -16,7 +16,7 @@ services:
       restart_policy:
         condition: any
 
-  gulax-postgres:
+  postgres:
     image: postgres:15
     environment:
       POSTGRES_USER: ${POSTGRESQL_USER}
@@ -32,7 +32,7 @@ services:
       restart_policy:
         condition: any
 
-  gulax-redis:
+  redis:
     image: redis:7.4-alpine
     ports:
       - "6380:6379"
@@ -52,7 +52,7 @@ services:
       restart_policy:
         condition: any
 
-  gulax-celery-worker:
+  celery-worker:
     image: ${NEXUS_REGISTRY}/gulax-api:latest
     networks:
       - gulax-network
