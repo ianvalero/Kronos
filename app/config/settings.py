@@ -99,7 +99,7 @@ class Settings(BaseSettings):
     sql_log: bool = False
     automation_api_token: str
     proxy_url: str | None = None
-    files_storage_path: str = "files/"
+    files_storage_path: str = "/files"
 
     postgres: PostgresSettings = Field(default_factory=PostgresSettings)
     redis: RedisSettings = Field(default_factory=RedisSettings)
@@ -128,7 +128,7 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def create_files_storage_path(self):
-        Path(self.files_storage_path).parent.mkdir(parents=True, exist_ok=True)
+        Path(self.files_storage_path).mkdir(parents=True, exist_ok=True)
         return self
 
     model_config = SettingsConfigDict(
