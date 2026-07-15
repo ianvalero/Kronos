@@ -57,6 +57,7 @@ services:
     image: ${NEXUS_REGISTRY}/gulax-api:latest
     networks:
       - gulax-network
+      - ai-network
     env_file:
       - .env
     command: celery -A app.celery_workers.celery_app worker --loglevel=info
