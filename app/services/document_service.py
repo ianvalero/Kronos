@@ -1,6 +1,4 @@
 import logging
-from datetime import datetime
-
 from sqlmodel import Session
 
 from app.services import CollectionService
@@ -29,8 +27,8 @@ class DocumentService:
         documents_db = self.document_repository.get_documents(session=session, collection_id=collection.id)
 
         return [
-            DocumentRead(**document.model_dump())
-            for document in documents_db
+            DocumentRead.model_validate(document_db)
+            for document_db in documents_db
         ]
 
     async def get_document(self, session: Session, user: User, collection_id: int, document_id: int) -> DocumentRead:
@@ -41,7 +39,7 @@ class DocumentService:
             document_id=document_id
         )
 
-        return DocumentRead(**document_db.model_dump())
+        return DocumentRead.model_validate(document_db)
 
     async def get_document_by_id(self, session: Session, user: User, document_id: int) -> DocumentRead:
         document_db = self.document_repository.get_document(session=session, document_id=document_id)

@@ -15,7 +15,7 @@ class DocumentRepository:
                 DocumentDB.deleted_at.is_(None)
             )
             .options(selectinload(
-                DocumentDB.documents_versions.and_(DocumentVersionDB.status == "completed"))
+                DocumentDB.documents_versions.and_(DocumentVersionDB.status == "ACTIVE"))
             )
         )
 
