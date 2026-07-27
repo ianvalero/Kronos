@@ -1,6 +1,7 @@
 from datetime import datetime
-from sqlalchemy import Column, ARRAY, String
-from sqlmodel import SQLModel, Field, Relationship
+from sqlalchemy import Column, String
+from sqlalchemy.dialects.postgresql import ARRAY
+from sqlmodel import SQLModel, Field
 
 
 class UserDB(SQLModel, table=True):

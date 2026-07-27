@@ -1,4 +1,5 @@
-from sqlalchemy import ARRAY, Column, String
+from sqlalchemy import Column, String
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlmodel import SQLModel, Field, Relationship
 from datetime import datetime
 
