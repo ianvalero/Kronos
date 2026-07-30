@@ -23,7 +23,7 @@ async def login(
 ):
     return user_service.authenticate_sso_user(session=session, user=body)
 
-@router.post(
+@router.patch(
     "/{username}/api-key",
     response_model=UserLoginResponse,
     dependencies=[Depends(dependencies_auth.require_automation)],
