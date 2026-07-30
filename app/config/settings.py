@@ -94,7 +94,6 @@ class EmbeddingSettings(BaseSettings):
 
 
 class Settings(BaseSettings):
-    environment: Literal["local", "staging", "production"] = "local"
     log_level: str = "INFO"
     sql_log: bool = False
     automation_api_token: str

@@ -7,7 +7,7 @@ from contextlib import asynccontextmanager
 from openinference.instrumentation.llama_index import LlamaIndexInstrumentor
 
 from app.config.log import setup_logging
-from app.routers import collection, document, document_version, auth
+from app.routers import collection, document, document_version, user
 import app.services as services
 import app.infrastructure as infrastructure
 
@@ -75,7 +75,7 @@ async def global_exception_handler(request: Request, exc: Exception):
         content={"detail": "Internal Server Error"},
     )
 
-app.include_router(auth.router, prefix="/api/auth")
+app.include_router(user.router, prefix="/api/users")
 app.include_router(collection.router, prefix="/api/collections")
 app.include_router(document.router, prefix="/api/collections")
 app.include_router(document_version.router, prefix="/api/documents")

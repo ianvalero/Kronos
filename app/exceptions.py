@@ -11,6 +11,9 @@ class InvalidAutomationTokenError(AppException):
 class InvalidApiKeyError(AppException):
     status_code = 401
 
+class UserNotFoundError(AppException):
+    status_code = 404
+
 class CollectionPermissionError(AppException):
     status_code = 403
 
@@ -23,11 +26,11 @@ class DocumentNotFoundError(AppException):
 class DocumentVersionNotFoundError(AppException):
     status_code = 404
 
-class CeleryTaskEnqueueError(AppException):
-    status_code = 503
-
 class CeleryTaskNotFoundError(AppException):
     status_code = 404
+
+class CeleryTaskEnqueueError(AppException):
+    status_code = 503
 
 class QdrantOperationError(AppException):
     status_code = 503

@@ -17,7 +17,18 @@ def get_current_user(
 ) -> User:
     return user_service.get_current_user(session, x_api_key)
 
-def require_admin(current_user: UserDB = Depends(get_current_user)) -> UserDB:
+def require_admin(current_user: UserDB = Depends(get_current_user)) -> User:
     if not current_user.is_admin:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Administrator permissions are required")
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            detail=f"User {current_user.username} is not authorized to perform this action"
+        )
+    return current_user
+
+def require_automation(current_user: UserDB = Depends(get_current_user)) -> User:
+    if not current_user.is_admin and not current_user.is_automation:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            detail=f"User {current_user.username} is not authorized to perform this action"
+        )
     return current_user
