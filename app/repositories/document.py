@@ -38,8 +38,13 @@ class DocumentRepository:
         session.flush()
         return document
 
-    def delete_document(self, session: Session, document: DocumentDB, deleted_by: str) -> bool:
+    def update_document(self, session: Session, document: DocumentDB) -> DocumentDB:
+        document.updated_at = datetime.now()
+        session.add(document)
+        session.flush()
+        return document
+
+    def delete_document(self, session: Session, document: DocumentDB) -> bool:
         document.deleted_at = datetime.now()
-        document.deleted_by = deleted_by
         session.flush()
         return True

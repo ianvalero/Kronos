@@ -5,7 +5,7 @@ from app.database import get_session
 import app.dependencies.services as dependencies_services
 import app.dependencies.auth as dependencies_auth
 from app.services import DocumentService
-from app.schemas.document import DocumentRead, DocumentCreate
+from app.schemas.document import DocumentRead, DocumentCreate, DocumentUpdate
 from app.schemas.user import User
 
 router = APIRouter(tags=["documents"])
@@ -58,6 +58,27 @@ async def upload_document(
         collection_id=collection_id,
         document=payload
     )
+
+@router.patch(
+"/{collection_id}/documents/{document_id}",
+    status_code=status.HTTP_200_OK,
+    summary="Update document")
+async def update_document(
+    collection_id: int,
+    document_id: int,
+    payload: DocumentUpdate,
+    session: Session = Depends(get_session),
+    user: User = Depends(dependencies_auth.get_current_user),
+    document_service: DocumentService = Depends(dependencies_services.get_document_service)
+):
+    return await document_service.update_document(
+        session=session,
+        user=user,
+        collection_id=collection_id,
+        document_id=document_id,
+        data=payload
+    )
+
 
 @router.delete(
 "/{collection_id}/documents/{document_id}",

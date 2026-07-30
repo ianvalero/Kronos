@@ -51,6 +51,7 @@ async def create_collection(
 @router.patch(
     "/{collection_id}",
     response_model=CollectionSchema.CollectionRead,
+    status_code=status.HTTP_200_OK,
     summary="Update collection")
 async def update_collection(
     collection_id: int,

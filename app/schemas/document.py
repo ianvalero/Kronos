@@ -10,12 +10,19 @@ class DocumentRead(SQLModel):
     collection_id: int
     description: str
     created_at: datetime
+    created_by: str
+    updated_at: datetime | None = None
+    updated_by: str | None = None
     deleted_at: datetime | None = None
     deleted_by: str | None = None
+
     documents_versions: list[DocumentVersion] = list()
 
     model_config = ConfigDict(from_attributes=True)
 
 
 class DocumentCreate(SQLModel):
+    description: str
+
+class DocumentUpdate(SQLModel):
     description: str
