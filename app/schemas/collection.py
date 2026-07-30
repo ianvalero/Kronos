@@ -52,6 +52,8 @@ class CollectionRead(BaseModel):
     vectors: CollectionVectors
     created_at: datetime
     created_by: str
+    updated_at: datetime | None
+    updated_by: str | None
     deleted_at: datetime | None
     deleted_by: str | None
 

@@ -18,6 +18,8 @@ class CollectionDB(SQLModel, table=True):
     roles: list[str] = Field(sa_column=Column(ARRAY(String)))
     created_at: datetime = Field(default_factory=datetime.now)
     created_by: str
+    updated_at: datetime | None = None
+    updated_by: str | None = None
     deleted_at: datetime | None = None
     deleted_by: str | None = None
 

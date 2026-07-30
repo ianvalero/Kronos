@@ -100,6 +100,7 @@ class CollectionService:
 
         for field, value in update_data.items():
             setattr(collection_db, field, value)
+        collection_db.updated_by = user.username
 
         self.collection_repository.update_collection(session=session, collection=collection_db)
         session.commit()
@@ -117,13 +118,10 @@ class CollectionService:
     async def delete_collection(self, session: Session, user: User, collection_id: int) -> bool:
         collection_db = self.__get_db_collection(session=session, user=user, collection_id=collection_id)
 
-        self.collection_repository.delete_collection(
-            session=session,
-            collection=collection_db,
-            deleted_by=user.username
-        )
-        await self.qdrant.delete_collection(collection_name=collection_db.qdrant_name)
+        collection_db.deleted_by = user.username
+        self.collection_repository.delete_collection(session=session, collection=collection_db)
 
+        await self.qdrant.delete_collection(collection_name=collection_db.qdrant_name)
         session.commit()
 
         self.logger.info(
@@ -156,6 +154,8 @@ class CollectionService:
             vectors=collection_qdrant["vectors"],
             created_at=collection_db.created_at,
             created_by=collection_db.created_by,
+            updated_at=collection_db.updated_at,
+            updated_by=collection_db.updated_by,
             deleted_at=collection_db.deleted_at,
             deleted_by=collection_db.deleted_by
         )
