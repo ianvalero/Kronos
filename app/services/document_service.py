@@ -53,7 +53,7 @@ class DocumentService:
             collection_id=document_db.collection_id
         )
 
-        return DocumentRead(**document_db.model_dump())
+        return DocumentRead.model_validate(document_db)
 
 
     async def add_document(
@@ -79,7 +79,7 @@ class DocumentService:
         session.refresh(document_db)
 
         self.logger.info(f"Document {document_db.id} added to database")
-        return DocumentRead(**document_db.model_dump())
+        return DocumentRead.model_validate(document_db)
 
     async def update_document(
         self,
@@ -105,7 +105,7 @@ class DocumentService:
         session.refresh(document_db)
 
         self.logger.info(f"Document {document_db.id} updated")
-        return DocumentRead(**document_db.model_dump())
+        return DocumentRead.model_validate(document_db)
 
     async def delete_document(self,
         session: Session,

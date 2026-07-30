@@ -36,7 +36,7 @@ class CollectionService:
         ]
         return CollectionSchema.CollectionsResponse(count=len(collections_read), collections=collections_read)
 
-    async def get_collection(self, session: Session, user: User, collection_id: int) -> CollectionSchema.CollectionRead:
+    async def get_collection(self, session: Session, user: User, collection_id: int) -> CollectionSchema.CollectionReadDetails:
         collection_db = self.__get_db_collection(session=session, user=user, collection_id=collection_id)
         collection_qdrant = await self.qdrant.get_collection(collection_name=collection_db.qdrant_name)
         return self.__create_collection_read(collection_db, collection_qdrant)
@@ -46,7 +46,7 @@ class CollectionService:
         session: Session,
         user: User,
         new_collection: CollectionSchema.CollectionCreate
-    ) -> CollectionSchema.CollectionRead:
+    ) -> CollectionSchema.CollectionReadDetails:
         if not user.is_admin and not set(new_collection.roles).issubset(set(user.roles)):
             raise CollectionPermissionError("User does not have permission to create a collection in this group.")
 
@@ -91,7 +91,7 @@ class CollectionService:
         user: User,
         collection_id: int,
         data: CollectionSchema.CollectionUpdate
-    ) -> CollectionSchema.CollectionRead:
+    ) -> CollectionSchema.CollectionReadDetails:
         collection_db = self.__get_db_collection(session=session, user=user, collection_id=collection_id)
 
         update_data = data.model_dump(exclude_unset=True)
@@ -142,8 +142,8 @@ class CollectionService:
         return collection_db
 
     @staticmethod
-    def __create_collection_read(collection_db: CollectionDB, collection_qdrant: dict) -> CollectionSchema.CollectionRead:
-        return CollectionSchema.CollectionRead(
+    def __create_collection_read(collection_db: CollectionDB, collection_qdrant: dict) -> CollectionSchema.CollectionReadDetails:
+        return CollectionSchema.CollectionReadDetails(
             id=collection_db.id,
             qdrant_name=collection_db.qdrant_name,
             gulax_name=collection_db.gulax_name,

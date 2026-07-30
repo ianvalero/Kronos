@@ -24,7 +24,7 @@ async def get_collections(
 
 @router.get(
 "/{collection_id}",
-    response_model=CollectionSchema.CollectionRead,
+    response_model=CollectionSchema.CollectionReadDetails,
     summary="Get collection")
 async def get_collection(
     collection_id: int,
@@ -37,7 +37,7 @@ async def get_collection(
 
 @router.post(
 "/",
-    response_model=CollectionSchema.CollectionRead,
+    response_model=CollectionSchema.CollectionReadDetails,
     status_code=status.HTTP_201_CREATED,
     summary="Create collection")
 async def create_collection(
@@ -50,7 +50,7 @@ async def create_collection(
 
 @router.patch(
     "/{collection_id}",
-    response_model=CollectionSchema.CollectionRead,
+    response_model=CollectionSchema.CollectionReadDetails,
     status_code=status.HTTP_200_OK,
     summary="Update collection")
 async def update_collection(

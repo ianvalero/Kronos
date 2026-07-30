@@ -14,8 +14,9 @@ class DocumentRepository:
                 DocumentDB.collection_id == collection_id,
                 DocumentDB.deleted_at.is_(None)
             )
-            .options(selectinload(
-                DocumentDB.documents_versions.and_(DocumentVersionDB.status == "ACTIVE"))
+            .options(
+                selectinload(DocumentDB.documents_versions.and_(DocumentVersionDB.status == "ACTIVE")),
+                selectinload(DocumentDB.collection)
             )
         )
 
@@ -28,7 +29,10 @@ class DocumentRepository:
                 DocumentDB.id == document_id,
                 DocumentDB.deleted_at.is_(None)
             )
-            .options(selectinload(DocumentDB.documents_versions))
+            .options(
+                selectinload(DocumentDB.documents_versions),
+                selectinload(DocumentDB.collection)
+            )
         )
 
         return session.exec(statement).first()

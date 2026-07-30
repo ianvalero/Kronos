@@ -3,12 +3,13 @@ from sqlmodel import SQLModel
 from pydantic import ConfigDict
 
 from app.schemas.document_version import DocumentVersion
+from app.schemas.collection import CollectionRead
 
 
 class DocumentRead(SQLModel):
     id: int
-    collection_id: int
     description: str
+    collection: CollectionRead
     created_at: datetime
     created_by: str
     updated_at: datetime | None = None

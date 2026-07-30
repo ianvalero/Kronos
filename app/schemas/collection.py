@@ -47,6 +47,16 @@ class CollectionRead(BaseModel):
     gulax_name: str
     description: str | None
     roles: list[str]
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+class CollectionReadDetails(BaseModel):
+    id: int
+    qdrant_name: str
+    gulax_name: str
+    description: str | None
+    roles: list[str]
     status: str
     points_count: int
     vectors: CollectionVectors
@@ -57,7 +67,9 @@ class CollectionRead(BaseModel):
     deleted_at: datetime | None
     deleted_by: str | None
 
+    model_config = ConfigDict(from_attributes=True)
+
 
 class CollectionsResponse(BaseModel):
     count: int
-    collections: list[CollectionRead]
+    collections: list[CollectionReadDetails]
