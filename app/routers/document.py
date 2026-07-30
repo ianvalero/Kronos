@@ -44,7 +44,7 @@ async def get_document(
 "/{collection_id}/documents/",
     response_model=DocumentRead,
     status_code=status.HTTP_201_CREATED,
-    summary="Upload new document")
+    summary="Create new document")
 async def upload_document(
     collection_id: int,
     payload: DocumentCreate,

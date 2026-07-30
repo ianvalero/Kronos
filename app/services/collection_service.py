@@ -7,8 +7,7 @@ from app.config.settings import settings
 from app.repositories.collection import CollectionRepository
 from app.models.collection import CollectionDB
 from app.infrastructure.qdrant_gateway import QdrantGateway
-from app.schemas.collection import CollectionCreate, CollectionCreateQdrant, HNSWConfig
-from app.schemas.collection import CollectionRead, CollectionsResponse
+import app.schemas.collection as CollectionSchema
 from app.schemas.user import User
 from app.exceptions import CollectionPermissionError, CollectionNotFoundError
 
@@ -20,7 +19,7 @@ class CollectionService:
         self.collection_repository = CollectionRepository()
         self.logger.info("Collection Service initialized")
 
-    async def get_collections(self, session: Session, user: User) -> CollectionsResponse:
+    async def get_collections(self, session: Session, user: User) -> CollectionSchema.CollectionsResponse:
         if user.is_admin:
             collections_db = self.collection_repository.get_collections(session=session)
         else:
@@ -35,42 +34,41 @@ class CollectionService:
             self.__create_collection_read(collection_db, qdrant_map.get(collection_db.qdrant_name, {}))
             for collection_db in collections_db
         ]
-        return CollectionsResponse(count=len(collections_read), collections=collections_read)
+        return CollectionSchema.CollectionsResponse(count=len(collections_read), collections=collections_read)
 
-    async def get_collection(self, session: Session, user: User, collection_id: int) -> CollectionRead:
-        collection_db = self.collection_repository.get_collection(session=session, collection_id=collection_id)
-
-        if not collection_db:
-            raise CollectionNotFoundError(f"Collection with ID {collection_id} not found.")
-        elif not user.is_admin and not (set(collection_db.roles) & set(user.roles)):
-            raise CollectionPermissionError("You do not have permission to access this collection.")
-
+    async def get_collection(self, session: Session, user: User, collection_id: int) -> CollectionSchema.CollectionRead:
+        collection_db = self.__get_db_collection(session=session, user=user, collection_id=collection_id)
         collection_qdrant = await self.qdrant.get_collection(collection_name=collection_db.qdrant_name)
         return self.__create_collection_read(collection_db, collection_qdrant)
 
-    async def create_collection(self, session: Session, user: User, new_collection: CollectionCreate) -> CollectionRead:
+    async def create_collection(
+        self,
+        session: Session,
+        user: User,
+        new_collection: CollectionSchema.CollectionCreate
+    ) -> CollectionSchema.CollectionRead:
         if not user.is_admin and not set(new_collection.roles).issubset(set(user.roles)):
             raise CollectionPermissionError("User does not have permission to create a collection in this group.")
 
-        qdrant_name = f"col_{new_collection.name}_{uuid.uuid4().hex}"
+        qdrant_name = f"col_{new_collection.gulax_name}_{uuid.uuid4().hex}"
 
         collection_db = CollectionDB(
             qdrant_name=qdrant_name,
-            gulax_name=new_collection.name,
+            gulax_name=new_collection.gulax_name,
             description=new_collection.description,
             roles=new_collection.roles,
             created_by=user.username
         )
         self.collection_repository.create_collection(session=session, collection=collection_db)
 
-        qdrant_config = CollectionCreateQdrant(
+        qdrant_config = CollectionSchema.CollectionCreateQdrant(
             name=qdrant_name,
             size=settings.qdrant.size,
             distance=settings.qdrant.distance,
             shard_number=settings.qdrant.shard_number,
             replication_factor=settings.qdrant.replication_factor,
             on_disk_payload=settings.qdrant.on_disk_payload,
-            hnsw_config=HNSWConfig(
+            hnsw_config=CollectionSchema.HNSWConfig(
                 m=settings.qdrant.node_conexions_number,
                 ef_construct=settings.qdrant.ef_construct
             ),
@@ -81,19 +79,43 @@ class CollectionService:
         session.refresh(collection_db)
 
         self.logger.info(
-            f"Colección {new_collection.name} creada con éxito "
+            f"Colección {new_collection.gulax_name} creada con éxito "
             f"| SQL ID: {collection_db.id} "
             f"| Qdrant: {qdrant_name}"
         )
         return self.__create_collection_read(collection_db, collection_qdrant)
 
-    async def delete_collection(self, session: Session, user: User, collection_id: int) -> bool:
-        collection_db = self.collection_repository.get_collection(session=session, collection_id=collection_id)
-        if not collection_db:
-            raise CollectionNotFoundError(f"Collection with ID {collection_id} not found.")
+    async def update_collection(
+        self,
+        session: Session,
+        user: User,
+        collection_id: int,
+        data: CollectionSchema.CollectionUpdate
+    ) -> CollectionSchema.CollectionRead:
+        collection_db = self.__get_db_collection(session=session, user=user, collection_id=collection_id)
 
-        if not user.is_admin and not set(collection_db.roles).issubset(set(user.roles)):
-            raise CollectionPermissionError("User does not have permission to delete a collection in this group.")
+        update_data = data.model_dump(exclude_unset=True)
+        if "roles" in update_data and not user.is_admin and not set(update_data["roles"]).issubset(set(user.roles)):
+            raise CollectionPermissionError("User does not have permission to assign these roles.")
+
+        for field, value in update_data.items():
+            setattr(collection_db, field, value)
+
+        self.collection_repository.update_collection(session=session, collection=collection_db)
+        session.commit()
+        session.refresh(collection_db)
+
+        collection_qdrant = await self.qdrant.get_collection(collection_name=collection_db.qdrant_name)
+
+        self.logger.info(
+            f"Colección {collection_db.gulax_name} modificada con éxito "
+            f"| SQL ID: {collection_db.id} "
+            f"| Qdrant: {collection_db.qdrant_name}"
+        )
+        return self.__create_collection_read(collection_db, collection_qdrant)
+
+    async def delete_collection(self, session: Session, user: User, collection_id: int) -> bool:
+        collection_db = self.__get_db_collection(session=session, user=user, collection_id=collection_id)
 
         self.collection_repository.delete_collection(
             session=session,
@@ -111,8 +133,19 @@ class CollectionService:
         )
         return True
 
-    def __create_collection_read(self, collection_db: CollectionDB, collection_qdrant: dict) -> CollectionRead:
-        return CollectionRead(
+    def __get_db_collection(self, session: Session, user: User, collection_id: int) -> CollectionDB:
+        collection_db = self.collection_repository.get_collection(session=session, collection_id=collection_id)
+
+        if not collection_db:
+            raise CollectionNotFoundError(f"Collection with ID {collection_id} not found.")
+        elif not user.is_admin and not (set(collection_db.roles) & set(user.roles)):
+            raise CollectionPermissionError("User does not have permission to access this collection.")
+
+        return collection_db
+
+    @staticmethod
+    def __create_collection_read(collection_db: CollectionDB, collection_qdrant: dict) -> CollectionSchema.CollectionRead:
+        return CollectionSchema.CollectionRead(
             id=collection_db.id,
             qdrant_name=collection_db.qdrant_name,
             gulax_name=collection_db.gulax_name,

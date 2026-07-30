@@ -40,6 +40,11 @@ class CollectionRepository:
         session.flush()
         return collection
 
+    def update_collection(self, session: Session, collection: CollectionDB) -> CollectionDB:
+        session.add(collection)
+        session.flush()
+        return collection
+
     def delete_collection(self, session: Session, collection: CollectionDB, deleted_by: str) -> bool:
         collection.deleted_at = datetime.now()
         collection.deleted_by = deleted_by

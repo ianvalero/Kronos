@@ -48,6 +48,18 @@ async def create_collection(
 ):
     return await collection_service.create_collection(session=session, user=user, new_collection=body)
 
+@router.patch(
+    "/{collection_id}",
+    response_model=CollectionSchema.CollectionRead,
+    summary="Update collection")
+async def update_collection(
+    collection_id: int,
+    body: CollectionSchema.CollectionUpdate,
+    session: Session = Depends(get_session),
+    user: User = Depends(dependencies_auth.get_current_user),
+    collection_service: CollectionService = Depends(dependencies_services.get_collection_service)
+):
+    return await collection_service.update_collection(session=session, user=user, collection_id=collection_id, data=body)
 
 @router.delete(
 "/{collection_id}",
