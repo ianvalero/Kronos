@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, status, Query
 from sqlmodel import Session
 
 from app.database import get_session
@@ -6,21 +6,44 @@ import app.dependencies.services as dependencies_services
 import app.dependencies.auth as dependencies_auth
 from app.services import DocumentService
 from app.schemas.document import DocumentRead, DocumentCreate, DocumentUpdate
+from app.schemas.pagination import Pagination, PaginatedResponse
 from app.schemas.user import User
+
 
 router = APIRouter(tags=["documents"])
 
 @router.get(
 "/{collection_id}/documents",
-    response_model=list[DocumentRead],
+    response_model=PaginatedResponse[DocumentRead],
     summary="Get all documents in a collection")
 async def get_documents(
     collection_id: int,
+    offset: int = Query(default=0, ge=0),
+    limit: int = Query(default=20, ge=1, le=100),
     session: Session = Depends(get_session),
     user: User = Depends(dependencies_auth.get_current_user),
     document_service: DocumentService = Depends(dependencies_services.get_document_service)
 ):
-    return await document_service.get_documents(session=session, user=user, collection_id=collection_id)
+    items, total = await document_service.get_documents(
+        session=session,
+        user=user,
+        collection_id=collection_id,
+        offset=offset,
+        limit=limit
+    )
+    pagination = Pagination(
+        offset=offset,
+        limit=limit,
+        total=total,
+        has_next=offset + limit < total,
+        has_prev=offset > 0
+    )
+
+    return PaginatedResponse[DocumentRead](
+        items=items,
+        pagination=pagination
+    )
+
 
 @router.get(
 "/{collection_id}/documents/{document_id}",

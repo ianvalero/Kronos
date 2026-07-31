@@ -1,4 +1,4 @@
-from fastapi import APIRouter, status, Depends
+from fastapi import APIRouter, status, Depends, Query
 from sqlmodel import Session
 
 from app.database import get_session
@@ -6,20 +6,35 @@ from app.services.collection_service import CollectionService
 import app.dependencies.services as dependencies_services
 import app.dependencies.auth as dependencies_auth
 import app.schemas.collection as CollectionSchema
+from app.schemas.pagination import Pagination, PaginatedResponse
 from app.schemas.user import User
 
 router = APIRouter(tags=["collections"])
 
 @router.get(
 "/",
-    response_model=CollectionSchema.CollectionsResponse,
+    response_model=PaginatedResponse[CollectionSchema.CollectionReadDetails],
     summary="Get all collection")
 async def get_collections(
+    offset: int = Query(default=0, ge=0),
+    limit: int = Query(default=20, ge=1, le=100),
     session: Session = Depends(get_session),
     user: User = Depends(dependencies_auth.get_current_user),
     collection_service: CollectionService = Depends(dependencies_services.get_collection_service)
 ):
-    return await collection_service.get_collections(session=session, user=user)
+    items, total = await collection_service.get_collections(session=session, user=user, offset=offset, limit=limit)
+    pagination = Pagination(
+        offset=offset,
+        limit=limit,
+        total=total,
+        has_next=offset + limit < total,
+        has_prev=offset > 0
+    )
+
+    return PaginatedResponse[CollectionSchema.CollectionReadDetails](
+        items=items,
+        pagination=pagination
+    )
 
 
 @router.get(

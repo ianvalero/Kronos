@@ -1,29 +1,66 @@
+from typing import cast
 from datetime import datetime
-from sqlmodel import Session, select
+from sqlmodel import Session, select, func
 
 from app.models.collection import CollectionDB
 
 class CollectionRepository:
-    def get_collections(self, session: Session) -> list[CollectionDB]:
-        statement = (
-            select(CollectionDB)
-            .where(CollectionDB.deleted_at.is_(None))
+    def get_collections(self, session: Session, offset: int = 0, limit: int = 100) -> tuple[list[CollectionDB], int]:
+        where_conditions = (
+            CollectionDB.deleted_at.is_(None),
         )
-        return session.exec(statement).all()
 
-    def get_collections_by_roles(self, session: Session, roles: list[str]) -> list[CollectionDB]:
+        collections = (
+            select(CollectionDB)
+            .where(*where_conditions)
+            .order_by(CollectionDB.id)
+            .offset(offset)
+            .limit(limit)
+        )
+
+        total = (
+            select(func.count())
+            .select_from(CollectionDB)
+            .where(*where_conditions)
+        )
+
+        collections = cast(list[CollectionDB], session.exec(collections).all())
+        total = cast(int, session.exec(total).one())
+        return collections, total
+
+    def get_collections_by_roles(
+        self,
+        session: Session,
+        roles: list[str],
+        offset: int = 0,
+        limit: int = 100
+    ) -> tuple[list[CollectionDB], int]:
         if not roles:
-            return []
+            return [], 0
 
-        statement = (
-            select(CollectionDB)
-            .where(
-                CollectionDB.deleted_at.is_(None),
-                CollectionDB.roles.overlap(roles),
-            )
-            .distinct()
+        where_conditions = (
+            CollectionDB.deleted_at.is_(None),
+            CollectionDB.roles.overlap(roles),
         )
-        return session.exec(statement).all()
+
+        collections = (
+            select(CollectionDB)
+            .where(*where_conditions)
+            .distinct()
+            .order_by(CollectionDB.id)
+            .offset(offset)
+            .limit(limit)
+        )
+
+        total = (
+            select(func.count(func.distinct(CollectionDB.id)))
+            .select_from(CollectionDB)
+            .where(*where_conditions)
+        )
+
+        collections = cast(list[CollectionDB], session.exec(collections).all())
+        total = cast(int, session.exec(total).one())
+        return collections, total
 
     def get_collection(self, session: Session, collection_id: int) -> CollectionDB | None:
         statement = (

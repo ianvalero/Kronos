@@ -18,18 +18,31 @@ class DocumentService:
         self.document_repository = DocumentRepository()
         self.logger.info("Document Service initialized")
 
-    async def get_documents(self, session: Session, user: User, collection_id: int) -> list[DocumentRead]:
+    async def get_documents(
+        self,
+        session: Session,
+        user: User,
+        collection_id: int,
+        offset: int = 0,
+        limit: int = 100
+    ) -> tuple[list[DocumentRead], int]:
         collection = await self.collection_service.get_collection(
             session=session,
             user=user,
             collection_id=collection_id
         )
-        documents_db = self.document_repository.get_documents(session=session, collection_id=collection.id)
+        documents_db, total = self.document_repository.get_documents(
+            session=session,
+            collection_id=collection.id,
+            offset=offset,
+            limit=limit
+        )
 
-        return [
+        documents_read = [
             DocumentRead.model_validate(document_db)
             for document_db in documents_db
         ]
+        return documents_read, total
 
     async def get_document(self, session: Session, user: User, collection_id: int, document_id: int) -> DocumentRead:
         document_db = await self.__fetch_document(

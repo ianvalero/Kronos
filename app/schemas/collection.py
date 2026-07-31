@@ -19,10 +19,12 @@ class CollectionCreate(BaseModel):
     description: str | None = Field(default=None, max_length=255)
     roles: list[str] = Field(min_length=1)
 
+
 class CollectionUpdate(BaseModel):
     gulax_name: str | None = Field(default=None, min_length=1, max_length=100)
     description: str | None = Field(default=None, max_length=255)
     roles: list[str] | None = Field(default=None, min_length=1)
+
 
 class CollectionCreateQdrant(BaseModel):
     name: str = Field(min_length=1)
@@ -68,8 +70,3 @@ class CollectionReadDetails(BaseModel):
     deleted_by: str | None
 
     model_config = ConfigDict(from_attributes=True)
-
-
-class CollectionsResponse(BaseModel):
-    count: int
-    collections: list[CollectionReadDetails]

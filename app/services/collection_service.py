@@ -19,11 +19,22 @@ class CollectionService:
         self.collection_repository = CollectionRepository()
         self.logger.info("Collection Service initialized")
 
-    async def get_collections(self, session: Session, user: User) -> CollectionSchema.CollectionsResponse:
+    async def get_collections(
+        self,
+        session: Session,
+        user: User,
+        offset: int = 0,
+        limit: int = 100
+    ) -> tuple[list[CollectionSchema.CollectionReadDetails], int]:
         if user.is_admin:
-            collections_db = self.collection_repository.get_collections(session=session)
+            collections_db, total = self.collection_repository.get_collections(session=session, offset=offset, limit=limit)
         else:
-            collections_db = self.collection_repository.get_collections_by_roles(session, user.roles)
+            collections_db, total = self.collection_repository.get_collections_by_roles(
+                session=session,
+                roles=user.roles,
+                offset=offset,
+                limit=limit
+            )
 
         collections_qdrant = await self.qdrant.get_collections(
             collection_names=[collection.qdrant_name for collection in collections_db]
@@ -34,7 +45,7 @@ class CollectionService:
             self.__create_collection_read(collection_db, qdrant_map.get(collection_db.qdrant_name, {}))
             for collection_db in collections_db
         ]
-        return CollectionSchema.CollectionsResponse(count=len(collections_read), collections=collections_read)
+        return collections_read, total
 
     async def get_collection(self, session: Session, user: User, collection_id: int) -> CollectionSchema.CollectionReadDetails:
         collection_db = self.__get_db_collection(session=session, user=user, collection_id=collection_id)
