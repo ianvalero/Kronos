@@ -5,6 +5,7 @@ from sqlalchemy.orm import selectinload
 
 from app.models.document import DocumentDB
 from app.models.document_version import DocumentVersionDB
+from app.schemas.document import DocumentFilters
 
 class DocumentRepository:
     def get_documents(
@@ -12,19 +13,27 @@ class DocumentRepository:
         session: Session,
         collection_id: int,
         offset: int = 0,
-        limit: int = 100
+        limit: int = 100,
+        filters: DocumentFilters | None = None,
     ) -> tuple[list[DocumentDB], int]:
-        where_conditions = (
+        where_conditions = [
             DocumentDB.collection_id == collection_id,
             DocumentDB.deleted_at.is_(None),
-        )
+        ]
+
+        if filters:
+            if filters.description:
+                where_conditions.append(DocumentDB.description.ilike(f"%{filters.description}%"))
+            if filters.created_by:
+                where_conditions.append(DocumentDB.created_by == filters.created_by)
+            if filters.created_at_from:
+                where_conditions.append(DocumentDB.created_at >= filters.created_at_from)
+            if filters.created_at_to:
+                where_conditions.append(DocumentDB.created_at <= filters.created_at_to)
 
         documents = (
             select(DocumentDB)
-            .where(
-                DocumentDB.collection_id == collection_id,
-                DocumentDB.deleted_at.is_(None)
-            )
+            .where(*where_conditions)
             .options(
                 selectinload(DocumentDB.documents_versions.and_(DocumentVersionDB.status == "ACTIVE")),
                 selectinload(DocumentDB.collection)

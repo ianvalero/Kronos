@@ -9,6 +9,13 @@ class Distance(str, Enum):
     DOT = "Dot"
 
 
+class CollectionFilters(BaseModel):
+    description: str | None = None
+    created_by: str | None = None
+    created_at_from: datetime | None = None
+    created_at_to: datetime | None = None
+
+
 class HNSWConfig(BaseModel):
     m: int = Field(gt=0, description="Maximum number of connections per node")
     ef_construct: int = Field(gt=0, description="Index quality during construction")

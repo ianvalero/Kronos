@@ -1,9 +1,16 @@
+from typing import Any
 from datetime import datetime
 from sqlmodel import SQLModel
-from typing import Any
+from pydantic import ConfigDict, BaseModel
 
+class DocumentVersionFilters(BaseModel):
+    filename: str | None = None
+    status: str | None = None
+    upload_by: str | None = None
+    upload_at_from: datetime | None = None
+    upload_at_to: datetime | None = None
 
-class DocumentVersion(SQLModel):
+class DocumentVersionRead(SQLModel):
     id: int
     document_id: int
     filename: str
@@ -14,7 +21,9 @@ class DocumentVersion(SQLModel):
     error_message: str | None
     status: str
 
-class DocumentVersionDetail(DocumentVersion):
+    model_config = ConfigDict(from_attributes=True)
+
+class DocumentVersionReadDetail(DocumentVersionRead):
     file_path: str
     file_size: int
     mime_type: str

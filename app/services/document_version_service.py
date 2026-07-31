@@ -13,7 +13,7 @@ from app.services import DocumentService
 from app.repositories.document_version import DocumentVersionRepository
 from app.infrastructure.celery_client import CeleryClient
 from app.models.document_version import DocumentVersionDB
-from app.schemas.document_version import DocumentVersion, DocumentVersionDetail
+import app.schemas.document_version as DocumentVersionSchema
 from app.schemas.user import User
 from app.exceptions import DocumentVersionNotFoundError, CeleryTaskEnqueueError
 
@@ -33,18 +33,25 @@ class DocumentVersionService:
         self,
         session: Session,
         user: User,
-        document_id: int
-    ) -> list[DocumentVersion]:
+        document_id: int,
+        filters: DocumentVersionSchema.DocumentVersionFilters | None = None,
+        offset: int = 0,
+        limit: int = 100
+    ) -> tuple[list[DocumentVersionSchema.DocumentVersionRead], int]:
         await self.__check_document_permissions(session=session, user=user, document_id=document_id)
-        document_versions_db = self.document_version_repository.get_document_versions(
+        document_versions_db, total = self.document_version_repository.get_document_versions(
             session=session,
-            document_id=document_id
+            document_id=document_id,
+            offset=offset,
+            limit=limit,
+            filters=filters
         )
 
-        return [
-            DocumentVersion(**document_version_db.model_dump())
+        document_versions_read = [
+            DocumentVersionSchema.DocumentVersionRead(**document_version_db.model_dump())
             for document_version_db in document_versions_db
         ]
+        return document_versions_read, total
 
     async def get_document_version(
         self,
@@ -52,7 +59,7 @@ class DocumentVersionService:
         user: User,
         document_id: int,
         document_version_id: int
-    ) -> DocumentVersionDetail:
+    ) -> DocumentVersionSchema.DocumentVersionReadDetail:
         await self.__check_document_permissions(session=session, user=user, document_id=document_id)
         document_version_db = self.document_version_repository.get_document_version(
             session=session,
@@ -62,7 +69,7 @@ class DocumentVersionService:
         if not document_version_db or document_version_db.document_id != document_id:
             raise DocumentVersionNotFoundError(f"Version {document_version_id} not found in document {document_id}")
 
-        return DocumentVersionDetail(**document_version_db.model_dump())
+        return DocumentVersionSchema.DocumentVersionReadDetail(**document_version_db.model_dump())
 
     async def add_document_version(
         self,
@@ -70,7 +77,7 @@ class DocumentVersionService:
         user: User,
         document_id: int,
         file: UploadFile
-    ) -> DocumentVersionDetail:
+    ) -> DocumentVersionSchema.DocumentVersionReadDetail:
         await self.__check_document_permissions(session=session, user=user, document_id=document_id)
 
         document_version_path = await self.__save_document_version_file(file=file)
@@ -112,7 +119,7 @@ class DocumentVersionService:
         session.commit()
         session.refresh(document_version_db)
 
-        return DocumentVersionDetail(**document_version_db.model_dump())
+        return DocumentVersionSchema.DocumentVersionReadDetail(**document_version_db.model_dump())
 
     async def __save_document_version_file(self, file: UploadFile):
         original_name, extension = os.path.splitext(os.path.basename(file.filename))

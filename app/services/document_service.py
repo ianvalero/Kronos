@@ -5,7 +5,7 @@ from app.services import CollectionService
 from app.repositories.document import DocumentRepository
 from app.models.document import DocumentDB
 from app.infrastructure.qdrant_gateway import QdrantGateway
-from app.schemas.document import DocumentRead, DocumentCreate, DocumentUpdate
+import app.schemas.document as DocumentSchema
 from app.schemas.user import User
 from app.exceptions import DocumentNotFoundError, QdrantOperationError
 
@@ -23,9 +23,10 @@ class DocumentService:
         session: Session,
         user: User,
         collection_id: int,
+        filters: DocumentSchema.DocumentFilters | None = None,
         offset: int = 0,
         limit: int = 100
-    ) -> tuple[list[DocumentRead], int]:
+    ) -> tuple[list[DocumentSchema.DocumentRead], int]:
         collection = await self.collection_service.get_collection(
             session=session,
             user=user,
@@ -35,16 +36,23 @@ class DocumentService:
             session=session,
             collection_id=collection.id,
             offset=offset,
-            limit=limit
+            limit=limit,
+            filters=filters
         )
 
         documents_read = [
-            DocumentRead.model_validate(document_db)
+            DocumentSchema.DocumentRead.model_validate(document_db)
             for document_db in documents_db
         ]
         return documents_read, total
 
-    async def get_document(self, session: Session, user: User, collection_id: int, document_id: int) -> DocumentRead:
+    async def get_document(
+        self,
+        session: Session,
+        user: User,
+        collection_id: int,
+        document_id: int
+    ) -> DocumentSchema.DocumentRead:
         document_db = await self.__fetch_document(
             session=session,
             user=user,
@@ -52,9 +60,9 @@ class DocumentService:
             document_id=document_id
         )
 
-        return DocumentRead.model_validate(document_db)
+        return DocumentSchema.DocumentRead.model_validate(document_db)
 
-    async def get_document_by_id(self, session: Session, user: User, document_id: int) -> DocumentRead:
+    async def get_document_by_id(self, session: Session, user: User, document_id: int) -> DocumentSchema.DocumentRead:
         document_db = self.document_repository.get_document(session=session, document_id=document_id)
 
         if not document_db:
@@ -66,7 +74,7 @@ class DocumentService:
             collection_id=document_db.collection_id
         )
 
-        return DocumentRead.model_validate(document_db)
+        return DocumentSchema.DocumentRead.model_validate(document_db)
 
 
     async def add_document(
@@ -74,8 +82,8 @@ class DocumentService:
         session: Session,
         user: User,
         collection_id: int,
-        document: DocumentCreate
-    ) -> DocumentRead:
+        document: DocumentSchema.DocumentCreate
+    ) -> DocumentSchema.DocumentRead:
         collection = await self.collection_service.get_collection(
             session=session,
             user=user,
@@ -92,7 +100,7 @@ class DocumentService:
         session.refresh(document_db)
 
         self.logger.info(f"Document {document_db.id} added to database")
-        return DocumentRead.model_validate(document_db)
+        return DocumentSchema.DocumentRead.model_validate(document_db)
 
     async def update_document(
         self,
@@ -100,8 +108,8 @@ class DocumentService:
         user: User,
         collection_id: int,
         document_id: int,
-        data: DocumentUpdate
-    ) -> DocumentRead:
+        data: DocumentSchema.DocumentUpdate
+    ) -> DocumentSchema.DocumentRead:
         document_db = await self.__fetch_document(
             session=session,
             user=user,
@@ -118,7 +126,7 @@ class DocumentService:
         session.refresh(document_db)
 
         self.logger.info(f"Document {document_db.id} updated")
-        return DocumentRead.model_validate(document_db)
+        return DocumentSchema.DocumentRead.model_validate(document_db)
 
     async def delete_document(self,
         session: Session,

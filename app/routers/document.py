@@ -5,7 +5,7 @@ from app.database import get_session
 import app.dependencies.services as dependencies_services
 import app.dependencies.auth as dependencies_auth
 from app.services import DocumentService
-from app.schemas.document import DocumentRead, DocumentCreate, DocumentUpdate
+import app.schemas.document as DocumentSchema
 from app.schemas.pagination import Pagination, PaginatedResponse
 from app.schemas.user import User
 
@@ -14,12 +14,13 @@ router = APIRouter(tags=["documents"])
 
 @router.get(
 "/{collection_id}/documents",
-    response_model=PaginatedResponse[DocumentRead],
+    response_model=PaginatedResponse[DocumentSchema.DocumentRead],
     summary="Get all documents in a collection")
 async def get_documents(
     collection_id: int,
     offset: int = Query(default=0, ge=0),
     limit: int = Query(default=20, ge=1, le=100),
+    filters: DocumentSchema.DocumentFilters = Depends(),
     session: Session = Depends(get_session),
     user: User = Depends(dependencies_auth.get_current_user),
     document_service: DocumentService = Depends(dependencies_services.get_document_service)
@@ -28,6 +29,7 @@ async def get_documents(
         session=session,
         user=user,
         collection_id=collection_id,
+        filters=filters,
         offset=offset,
         limit=limit
     )
@@ -39,7 +41,7 @@ async def get_documents(
         has_prev=offset > 0
     )
 
-    return PaginatedResponse[DocumentRead](
+    return PaginatedResponse[DocumentSchema.DocumentRead](
         items=items,
         pagination=pagination
     )
@@ -47,7 +49,7 @@ async def get_documents(
 
 @router.get(
 "/{collection_id}/documents/{document_id}",
-    response_model=DocumentRead,
+    response_model=DocumentSchema.DocumentRead,
     summary="Get document by id")
 async def get_document(
     collection_id: int,
@@ -65,12 +67,12 @@ async def get_document(
 
 @router.post(
 "/{collection_id}/documents/",
-    response_model=DocumentRead,
+    response_model=DocumentSchema.DocumentRead,
     status_code=status.HTTP_201_CREATED,
     summary="Create new document")
 async def upload_document(
     collection_id: int,
-    payload: DocumentCreate,
+    payload: DocumentSchema.DocumentCreate,
     session: Session = Depends(get_session),
     user: User = Depends(dependencies_auth.get_current_user),
     document_service: DocumentService = Depends(dependencies_services.get_document_service)
@@ -89,7 +91,7 @@ async def upload_document(
 async def update_document(
     collection_id: int,
     document_id: int,
-    payload: DocumentUpdate,
+    payload: DocumentSchema.DocumentUpdate,
     session: Session = Depends(get_session),
     user: User = Depends(dependencies_auth.get_current_user),
     document_service: DocumentService = Depends(dependencies_services.get_document_service)

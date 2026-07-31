@@ -1,10 +1,16 @@
 from datetime import datetime
 from sqlmodel import SQLModel
-from pydantic import ConfigDict
+from pydantic import ConfigDict, BaseModel
 
-from app.schemas.document_version import DocumentVersion
+from app.schemas.document_version import DocumentVersionRead
 from app.schemas.collection import CollectionRead
 
+
+class DocumentFilters(BaseModel):
+    description: str | None = None
+    created_by: str | None = None
+    created_at_from: datetime | None = None
+    created_at_to: datetime | None = None
 
 class DocumentRead(SQLModel):
     id: int
@@ -17,7 +23,7 @@ class DocumentRead(SQLModel):
     deleted_at: datetime | None = None
     deleted_by: str | None = None
 
-    documents_versions: list[DocumentVersion] = list()
+    documents_versions: list[DocumentVersionRead] = list()
 
     model_config = ConfigDict(from_attributes=True)
 

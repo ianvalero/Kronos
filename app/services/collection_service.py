@@ -23,18 +23,18 @@ class CollectionService:
         self,
         session: Session,
         user: User,
+        filters: CollectionSchema.CollectionFilters | None = None,
         offset: int = 0,
         limit: int = 100
     ) -> tuple[list[CollectionSchema.CollectionReadDetails], int]:
-        if user.is_admin:
-            collections_db, total = self.collection_repository.get_collections(session=session, offset=offset, limit=limit)
-        else:
-            collections_db, total = self.collection_repository.get_collections_by_roles(
-                session=session,
-                roles=user.roles,
-                offset=offset,
-                limit=limit
-            )
+        collections_db, total = self.collection_repository.get_collections(
+            session=session,
+            roles=user.roles,
+            is_admin=user.is_admin,
+            offset=offset,
+            limit=limit,
+            filters=filters
+        )
 
         collections_qdrant = await self.qdrant.get_collections(
             collection_names=[collection.qdrant_name for collection in collections_db]

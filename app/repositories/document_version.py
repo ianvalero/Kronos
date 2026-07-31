@@ -1,18 +1,52 @@
-from pathlib import Path
-from sqlmodel import Session, select
+from typing import cast
+from sqlmodel import Session, select, func
 from sqlalchemy.orm import selectinload
 
 from app.models.document_version import DocumentVersionDB
+from app.schemas.document_version import DocumentVersionFilters
 
 class DocumentVersionRepository:
-    def get_document_versions(self, session: Session, document_id: int) -> list[DocumentVersionDB]:
-        statement = (
+    def get_document_versions(
+        self,
+        session: Session,
+        document_id: int,
+        offset: int = 0,
+        limit: int = 100,
+        filters: DocumentVersionFilters | None = None,
+    ) -> tuple[list[DocumentVersionDB], int]:
+        where_conditions = [
+            DocumentVersionDB.document_id == document_id
+        ]
+
+        if filters:
+            if filters.filename:
+                where_conditions.append(DocumentVersionDB.original_filename.ilike(f"%{filters.filename}%"))
+            if filters.status:
+                where_conditions.append(DocumentVersionDB.status == filters.status)
+            if filters.upload_by:
+                where_conditions.append(DocumentVersionDB.uploaded_by == filters.upload_by)
+            if filters.upload_at_from:
+                where_conditions.append(DocumentVersionDB.uploaded_at >= filters.upload_at_from)
+            if filters.upload_at_to:
+                where_conditions.append(DocumentVersionDB.uploaded_at <= filters.upload_at_to)
+
+        document_versions = (
             select(DocumentVersionDB)
-            .where(DocumentVersionDB.document_id == document_id)
+            .where(*where_conditions)
             .order_by(DocumentVersionDB.id.desc())
+            .offset(offset)
+            .limit(limit)
         )
 
-        return session.exec(statement).all()
+        total = (
+            select(func.count())
+            .select_from(DocumentVersionDB)
+            .where(*where_conditions)
+        )
+
+        document_versions = cast(list[DocumentVersionDB], session.exec(document_versions).all())
+        total = cast(int, session.exec(total).one())
+        return document_versions, total
 
     def get_document_active_versions(self, session: Session, document_id: int) -> list[DocumentVersionDB]:
         statement = (
