@@ -50,6 +50,17 @@ class CollectionRepository:
         total = cast(int, session.exec(total).one())
         return collections, total
 
+    def get_collections_id(self, session: Session, roles: list[str], is_admin: bool = False) -> list[int]:
+        if not is_admin and not roles:
+            return []
+
+        where_conditions = [CollectionDB.deleted_at.is_(None)]
+        if not is_admin:
+            where_conditions.append(CollectionDB.roles.overlap(roles))
+
+        statement = select(CollectionDB.id).where(*where_conditions)
+        return list(session.exec(statement).all())
+
     def get_collection(self, session: Session, collection_id: int) -> CollectionDB | None:
         statement = (
             select(CollectionDB)

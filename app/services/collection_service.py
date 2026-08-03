@@ -47,6 +47,13 @@ class CollectionService:
         ]
         return collections_read, total
 
+    async def get_collection_ids(self, session: Session, user: User) -> list[int]:
+        return self.collection_repository.get_collections_id(
+            session=session,
+            roles=user.roles,
+            is_admin=user.is_admin
+        )
+
     async def get_collection(self, session: Session, user: User, collection_id: int) -> CollectionSchema.CollectionReadDetails:
         collection_db = self.__get_db_collection(session=session, user=user, collection_id=collection_id)
         collection_qdrant = await self.qdrant.get_collection(collection_name=collection_db.qdrant_name)

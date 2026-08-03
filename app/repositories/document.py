@@ -11,25 +11,13 @@ class DocumentRepository:
     def get_documents(
         self,
         session: Session,
-        collection_id: int,
+        collection_ids: list[int],
         offset: int = 0,
         limit: int = 100,
         filters: DocumentFilters | None = None,
     ) -> tuple[list[DocumentDB], int]:
-        where_conditions = [
-            DocumentDB.collection_id == collection_id,
-            DocumentDB.deleted_at.is_(None),
-        ]
-
-        if filters:
-            if filters.description:
-                where_conditions.append(DocumentDB.description.ilike(f"%{filters.description}%"))
-            if filters.created_by:
-                where_conditions.append(DocumentDB.created_by == filters.created_by)
-            if filters.created_at_from:
-                where_conditions.append(DocumentDB.created_at >= filters.created_at_from)
-            if filters.created_at_to:
-                where_conditions.append(DocumentDB.created_at <= filters.created_at_to)
+        where_conditions = [DocumentDB.collection_id.in_(collection_ids)]
+        where_conditions += self.__generate_filters(filters)
 
         documents = (
             select(DocumentDB)
@@ -83,3 +71,25 @@ class DocumentRepository:
         document.deleted_at = datetime.now()
         session.flush()
         return True
+
+    def __generate_filters(self, filters: DocumentFilters | None = None) -> list:
+        where_conditions = []
+
+        if filters:
+            if filters.collection_id:
+                where_conditions.append(DocumentDB.collection_id == filters.collection_id)
+            if filters.description:
+                where_conditions.append(DocumentDB.description.ilike(f"%{filters.description}%"))
+            if filters.created_by:
+                where_conditions.append(DocumentDB.created_by == filters.created_by)
+            if filters.created_at_from:
+                where_conditions.append(DocumentDB.created_at >= filters.created_at_from)
+            if filters.created_at_to:
+                where_conditions.append(DocumentDB.created_at <= filters.created_at_to)
+
+            if filters.is_deleted:
+                where_conditions.append(DocumentDB.deleted_at.is_not(None))
+            else:
+                where_conditions.append(DocumentDB.deleted_at.is_(None))
+
+        return where_conditions

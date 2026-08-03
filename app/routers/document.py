@@ -11,13 +11,13 @@ from app.schemas.user import User
 
 
 router = APIRouter(tags=["documents"])
+user_documents_router = APIRouter(tags=["documents"])
 
-@router.get(
-"/{collection_id}/documents",
+@user_documents_router.get(
+    "",
     response_model=PaginatedResponse[DocumentSchema.DocumentRead],
-    summary="Get all documents in a collection")
+    summary="Get all documents")
 async def get_documents(
-    collection_id: int,
     offset: int = Query(default=0, ge=0),
     limit: int = Query(default=20, ge=1, le=100),
     filters: DocumentSchema.DocumentFilters = Depends(),
@@ -28,7 +28,6 @@ async def get_documents(
     items, total = await document_service.get_documents(
         session=session,
         user=user,
-        collection_id=collection_id,
         filters=filters,
         offset=offset,
         limit=limit
@@ -45,7 +44,6 @@ async def get_documents(
         items=items,
         pagination=pagination
     )
-
 
 @router.get(
 "/{collection_id}/documents/{document_id}",

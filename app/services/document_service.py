@@ -22,19 +22,25 @@ class DocumentService:
         self,
         session: Session,
         user: User,
-        collection_id: int,
         filters: DocumentSchema.DocumentFilters | None = None,
         offset: int = 0,
         limit: int = 100
     ) -> tuple[list[DocumentSchema.DocumentRead], int]:
-        collection = await self.collection_service.get_collection(
-            session=session,
-            user=user,
-            collection_id=collection_id
-        )
+        if filters and filters.collection_id:
+            await self.collection_service.get_collection(
+                session=session,
+                user=user,
+                collection_id=filters.collection_id
+            )
+            collection_ids = [filters.collection_id]
+        else:
+            collection_ids = await self.collection_service.get_collection_ids(session=session, user=user)
+            if not collection_ids:
+                return [], 0
+
         documents_db, total = self.document_repository.get_documents(
             session=session,
-            collection_id=collection.id,
+            collection_ids=collection_ids,
             offset=offset,
             limit=limit,
             filters=filters

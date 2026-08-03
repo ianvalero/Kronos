@@ -77,5 +77,6 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 app.include_router(user.router, prefix="/api/users")
 app.include_router(collection.router, prefix="/api/collections")
+app.include_router(document.user_documents_router, prefix="/api/documents")
 app.include_router(document.router, prefix="/api/collections")
 app.include_router(document_version.router, prefix="/api/documents")
