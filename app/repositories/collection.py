@@ -19,18 +19,9 @@ class CollectionRepository:
             return [], 0
 
         where_conditions = [CollectionDB.deleted_at.is_(None)]
+        where_conditions += self.__generate_filters(filters)
         if not is_admin:
             where_conditions.append(CollectionDB.roles.overlap(roles))
-
-        if filters:
-            if filters.description:
-                where_conditions.append(CollectionDB.description.ilike(f"%{filters.description}%"))
-            if filters.created_by:
-                where_conditions.append(CollectionDB.created_by == filters.created_by)
-            if filters.created_at_from:
-                where_conditions.append(CollectionDB.created_at >= filters.created_at_from)
-            if filters.created_at_to:
-                where_conditions.append(CollectionDB.created_at <= filters.created_at_to)
 
         collections = (
             select(CollectionDB)
@@ -86,3 +77,18 @@ class CollectionRepository:
         collection.deleted_at = datetime.now()
         session.flush()
         return True
+
+    def __generate_filters(self, filters: CollectionFilters | None = None) -> list:
+        where_conditions = []
+
+        if filters:
+            if filters.description:
+                where_conditions.append(CollectionDB.description.ilike(f"%{filters.description}%"))
+            if filters.created_by:
+                where_conditions.append(CollectionDB.created_by == filters.created_by)
+            if filters.created_at_from:
+                where_conditions.append(CollectionDB.created_at >= filters.created_at_from)
+            if filters.created_at_to:
+                where_conditions.append(CollectionDB.created_at <= filters.created_at_to)
+
+        return where_conditions

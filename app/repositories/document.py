@@ -86,10 +86,7 @@ class DocumentRepository:
                 where_conditions.append(DocumentDB.created_at >= filters.created_at_from)
             if filters.created_at_to:
                 where_conditions.append(DocumentDB.created_at <= filters.created_at_to)
-
-            if filters.is_deleted:
-                where_conditions.append(DocumentDB.deleted_at.is_not(None))
-            else:
+            if not filters.include_deleted:
                 where_conditions.append(DocumentDB.deleted_at.is_(None))
 
         return where_conditions

@@ -12,7 +12,7 @@ class DocumentFilters(BaseModel):
     created_by: str | None = None
     created_at_from: datetime | None = None
     created_at_to: datetime | None = None
-    is_deleted: bool = False
+    include_deleted: bool = False
 
 class DocumentRead(SQLModel):
     id: int
