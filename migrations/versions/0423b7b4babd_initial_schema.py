@@ -1,8 +1,8 @@
-"""sso login and api-key
+"""initial_schema
 
-Revision ID: e4cb6edf68d0
+Revision ID: 0423b7b4babd
 Revises: 
-Create Date: 2026-07-30 09:28:55.462832
+Create Date: 2026-08-03 14:44:04.551574
 
 """
 from typing import Sequence, Union
@@ -13,7 +13,7 @@ import sqlmodel
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = 'e4cb6edf68d0'
+revision: str = '0423b7b4babd'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -30,6 +30,8 @@ def upgrade() -> None:
     sa.Column('roles', postgresql.ARRAY(sa.String()), nullable=True),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('created_by', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
+    sa.Column('updated_at', sa.DateTime(), nullable=True),
+    sa.Column('updated_by', sqlmodel.sql.sqltypes.AutoString(), nullable=True),
     sa.Column('deleted_at', sa.DateTime(), nullable=True),
     sa.Column('deleted_by', sqlmodel.sql.sqltypes.AutoString(), nullable=True),
     sa.PrimaryKeyConstraint('id')
@@ -57,6 +59,9 @@ def upgrade() -> None:
     sa.Column('collection_id', sa.Integer(), nullable=False),
     sa.Column('description', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
+    sa.Column('created_by', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
+    sa.Column('updated_at', sa.DateTime(), nullable=True),
+    sa.Column('updated_by', sqlmodel.sql.sqltypes.AutoString(), nullable=True),
     sa.Column('deleted_at', sa.DateTime(), nullable=True),
     sa.Column('deleted_by', sqlmodel.sql.sqltypes.AutoString(), nullable=True),
     sa.ForeignKeyConstraint(['collection_id'], ['collections.id'], ),
@@ -77,7 +82,7 @@ def upgrade() -> None:
     sa.Column('qdrant_point_ids', postgresql.ARRAY(sa.String()), nullable=True),
     sa.Column('attempts', sa.Integer(), nullable=False),
     sa.Column('error_message', sqlmodel.sql.sqltypes.AutoString(), nullable=True),
-    sa.Column('status', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
+    sa.Column('status', sa.Enum('PENDING', 'PROCESSING', 'ACTIVE', 'FAILED', 'ARCHIVED', name='documentversionstatus', native_enum=False), nullable=True),
     sa.ForeignKeyConstraint(['document_id'], ['documents.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
