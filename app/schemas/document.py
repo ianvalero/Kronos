@@ -1,13 +1,13 @@
 from datetime import datetime
 from sqlmodel import SQLModel
-from pydantic import ConfigDict, BaseModel
+from pydantic import ConfigDict, BaseModel, Field
 
 from app.schemas.document_version import DocumentVersionRead
 from app.schemas.collection import CollectionRead
 
 
 class DocumentFilters(BaseModel):
-    collection_id: int | None = None
+    collection_id: int | None = Field(default=None, gt=0)
     description: str | None = None
     created_by: str | None = None
     created_at_from: datetime | None = None

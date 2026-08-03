@@ -3,9 +3,12 @@ from datetime import datetime
 from sqlmodel import SQLModel
 from pydantic import ConfigDict, BaseModel
 
+from app.enums import DocumentVersionStatus
+
+
 class DocumentVersionFilters(BaseModel):
     filename: str | None = None
-    status: str | None = None
+    status: DocumentVersionStatus | None = None
     upload_by: str | None = None
     upload_at_from: datetime | None = None
     upload_at_to: datetime | None = None
@@ -19,7 +22,7 @@ class DocumentVersionRead(SQLModel):
     uploaded_at: datetime
     task_id: str | None = None
     error_message: str | None
-    status: str
+    status: DocumentVersionStatus
 
     model_config = ConfigDict(from_attributes=True)
 

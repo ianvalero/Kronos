@@ -6,6 +6,7 @@ from sqlalchemy.orm import selectinload
 from app.models.document import DocumentDB
 from app.models.document_version import DocumentVersionDB
 from app.schemas.document import DocumentFilters
+from app.enums import DocumentVersionStatus
 
 class DocumentRepository:
     def get_documents(
@@ -23,7 +24,7 @@ class DocumentRepository:
             select(DocumentDB)
             .where(*where_conditions)
             .options(
-                selectinload(DocumentDB.documents_versions.and_(DocumentVersionDB.status == "ACTIVE")),
+                selectinload(DocumentDB.documents_versions.and_(DocumentVersionDB.status == DocumentVersionStatus.ACTIVE)),
                 selectinload(DocumentDB.collection)
             )
             .order_by(DocumentDB.id)
@@ -76,8 +77,6 @@ class DocumentRepository:
         where_conditions = []
 
         if filters:
-            if filters.collection_id:
-                where_conditions.append(DocumentDB.collection_id == filters.collection_id)
             if filters.description:
                 where_conditions.append(DocumentDB.description.ilike(f"%{filters.description}%"))
             if filters.created_by:

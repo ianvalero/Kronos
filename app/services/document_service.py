@@ -27,7 +27,7 @@ class DocumentService:
         limit: int = 100
     ) -> tuple[list[DocumentSchema.DocumentRead], int]:
         if filters and filters.collection_id:
-            await self.collection_service.get_collection(
+            await self.collection_service.check_access(
                 session=session,
                 user=user,
                 collection_id=filters.collection_id
@@ -74,7 +74,7 @@ class DocumentService:
         if not document_db:
             raise DocumentNotFoundError(f"Document {document_id} not found")
 
-        await self.collection_service.get_collection(
+        await self.collection_service.check_access(
             session=session,
             user=user,
             collection_id=document_db.collection_id
@@ -90,14 +90,14 @@ class DocumentService:
         collection_id: int,
         document: DocumentSchema.DocumentCreate
     ) -> DocumentSchema.DocumentRead:
-        collection = await self.collection_service.get_collection(
+        await self.collection_service.check_access(
             session=session,
             user=user,
             collection_id=collection_id
         )
         document_db: DocumentDB = DocumentDB(
             **document.model_dump(),
-            collection_id=collection.id,
+            collection_id=collection_id,
             created_by=user.username
         )
         self.document_repository.add_document(session=session, document=document_db)
@@ -167,7 +167,7 @@ class DocumentService:
             raise QdrantOperationError(f"Error deleting document {document_id} from Qdrant") from err
 
     async def __fetch_document(self, session: Session, user: User, collection_id: int, document_id: int) -> DocumentDB:
-        await self.collection_service.get_collection(
+        await self.collection_service.check_access(
             session=session,
             user=user,
             collection_id=collection_id

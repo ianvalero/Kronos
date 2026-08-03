@@ -4,6 +4,8 @@ from sqlalchemy.orm import selectinload
 
 from app.models.document_version import DocumentVersionDB
 from app.schemas.document_version import DocumentVersionFilters
+from app.enums import DocumentVersionStatus
+
 
 class DocumentVersionRepository:
     def get_document_versions(
@@ -14,21 +16,8 @@ class DocumentVersionRepository:
         limit: int = 100,
         filters: DocumentVersionFilters | None = None,
     ) -> tuple[list[DocumentVersionDB], int]:
-        where_conditions = [
-            DocumentVersionDB.document_id == document_id
-        ]
-
-        if filters:
-            if filters.filename:
-                where_conditions.append(DocumentVersionDB.original_filename.ilike(f"%{filters.filename}%"))
-            if filters.status:
-                where_conditions.append(DocumentVersionDB.status == filters.status)
-            if filters.upload_by:
-                where_conditions.append(DocumentVersionDB.uploaded_by == filters.upload_by)
-            if filters.upload_at_from:
-                where_conditions.append(DocumentVersionDB.uploaded_at >= filters.upload_at_from)
-            if filters.upload_at_to:
-                where_conditions.append(DocumentVersionDB.uploaded_at <= filters.upload_at_to)
+        where_conditions = [DocumentVersionDB.document_id == document_id]
+        where_conditions += self.__generate_filters(filters)
 
         document_versions = (
             select(DocumentVersionDB)
@@ -53,7 +42,7 @@ class DocumentVersionRepository:
             select(DocumentVersionDB)
             .where(
                 DocumentVersionDB.document_id == document_id,
-                DocumentVersionDB.status == "ACTIVE",
+                DocumentVersionDB.status == DocumentVersionStatus.ACTIVE,
             )
             .order_by(DocumentVersionDB.id.desc())
         )
@@ -89,7 +78,7 @@ class DocumentVersionRepository:
         session: Session,
         document_version: DocumentVersionDB
     ) -> DocumentVersionDB:
-        document_version.status = "PROCESSING"
+        document_version.status = DocumentVersionStatus.PROCESSING
 
         session.flush()
         return document_version
@@ -100,7 +89,7 @@ class DocumentVersionRepository:
         document_version: DocumentVersionDB,
         qdrant_point_ids: list[str]
     ) -> DocumentVersionDB:
-        document_version.status = "ACTIVE"
+        document_version.status = DocumentVersionStatus.ACTIVE
         document_version.qdrant_point_ids = qdrant_point_ids
         document_version.error_message = None
 
@@ -113,7 +102,7 @@ class DocumentVersionRepository:
         document_version: DocumentVersionDB,
         error_message: str
     ) -> DocumentVersionDB:
-        document_version.status = "FAILED"
+        document_version.status = DocumentVersionStatus.FAILED
         document_version.error_message = error_message
         document_version.attempts += 1
 
@@ -125,7 +114,24 @@ class DocumentVersionRepository:
         session: Session,
         document_version: DocumentVersionDB
     ) -> DocumentVersionDB:
-        document_version.status = "ARCHIVED"
+        document_version.status = DocumentVersionStatus.ARCHIVED
 
         session.flush()
         return document_version
+
+    def __generate_filters(self, filters: DocumentVersionFilters | None = None) -> list:
+        where_conditions = []
+
+        if filters:
+            if filters.filename:
+                where_conditions.append(DocumentVersionDB.original_filename.ilike(f"%{filters.filename}%"))
+            if filters.status:
+                where_conditions.append(DocumentVersionDB.status == filters.status)
+            if filters.upload_by:
+                where_conditions.append(DocumentVersionDB.uploaded_by == filters.upload_by)
+            if filters.upload_at_from:
+                where_conditions.append(DocumentVersionDB.uploaded_at >= filters.upload_at_from)
+            if filters.upload_at_to:
+                where_conditions.append(DocumentVersionDB.uploaded_at <= filters.upload_at_to)
+
+        return where_conditions

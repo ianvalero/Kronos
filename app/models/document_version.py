@@ -1,8 +1,9 @@
-from sqlalchemy import Column, String
+from sqlalchemy import Column, String, Enum as SAEnum
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlmodel import SQLModel, Field, Relationship
 from datetime import datetime
 
+from app.enums import DocumentVersionStatus
 from app.models.document import DocumentDB
 
 class DocumentVersionDB(SQLModel, table=True):
@@ -24,6 +25,14 @@ class DocumentVersionDB(SQLModel, table=True):
     )
     attempts: int = 0
     error_message: str | None = None
-    status: str = "pending"
+    status: DocumentVersionStatus = Field(
+        default=DocumentVersionStatus.PENDING,
+        sa_column=Column(
+            SAEnum(
+                DocumentVersionStatus,
+                values_callable=lambda enum: [enum_value.value for enum_value in enum],
+                native_enum=False)
+        )
+    )
 
     document: DocumentDB = Relationship(back_populates="documents_versions")
