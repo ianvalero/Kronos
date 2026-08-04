@@ -137,9 +137,5 @@ class DocumentVersionService:
         return save_path
 
     async def __check_document_permissions(self, session: Session, user: User, document_id: int):
-        await self.document_service.get_document_by_id(
-            session=session,
-            user=user,
-            document_id=document_id
-        )
+        await self.document_service.get_document(session=session, user=user, document_id=document_id)
         return True

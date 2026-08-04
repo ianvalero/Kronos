@@ -9,7 +9,7 @@ import app.schemas.collection as CollectionSchema
 from app.schemas.pagination import Pagination, PaginatedResponse
 from app.schemas.user import User
 
-router = APIRouter(tags=["collections"])
+router = APIRouter(prefix="/api/collections", tags=["Collections"])
 
 @router.get(
 "/",

@@ -11,7 +11,7 @@ from app.schemas.user import User
 from app.services import DocumentVersionService
 from app.exceptions import CeleryTaskNotFoundError
 
-router = APIRouter(tags=["documents versions"])
+router = APIRouter(prefix="/api/documents", tags=["Documents Versions"])
 
 @router.get(
 "/{document_id}/versions",

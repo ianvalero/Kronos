@@ -8,7 +8,7 @@ from app.services.user_service import UserService
 import app.dependencies.services as dependencies_services
 import app.dependencies.auth as dependencies_auth
 
-router = APIRouter(tags=["Users"])
+router = APIRouter(prefix="/api/users", tags=["Users"])
 
 @router.post(
     "/login",

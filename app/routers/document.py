@@ -10,10 +10,10 @@ from app.schemas.pagination import Pagination, PaginatedResponse
 from app.schemas.user import User
 
 
-router = APIRouter(tags=["documents"])
-user_documents_router = APIRouter(tags=["documents"])
+router = APIRouter(prefix="/api/documents", tags=["Documents"])
+create_document_router = APIRouter(prefix="/api/collections", tags=["Documents"])
 
-@user_documents_router.get(
+@router.get(
     "",
     response_model=PaginatedResponse[DocumentSchema.DocumentRead],
     summary="Get all documents")
@@ -46,25 +46,19 @@ async def get_documents(
     )
 
 @router.get(
-"/{collection_id}/documents/{document_id}",
+"/{document_id}",
     response_model=DocumentSchema.DocumentRead,
     summary="Get document by id")
 async def get_document(
-    collection_id: int,
     document_id: int,
     session: Session = Depends(get_session),
     user: User = Depends(dependencies_auth.get_current_user),
     document_service: DocumentService = Depends(dependencies_services.get_document_service)
 ):
-    return await document_service.get_document(
-        session=session,
-        user=user,
-        collection_id=collection_id,
-        document_id=document_id
-    )
+    return await document_service.get_document(session=session, user=user, document_id=document_id)
 
-@router.post(
-"/{collection_id}/documents/",
+@create_document_router.post(
+"/{collection_id}/documents",
     response_model=DocumentSchema.DocumentRead,
     status_code=status.HTTP_201_CREATED,
     summary="Create new document")
@@ -83,40 +77,27 @@ async def upload_document(
     )
 
 @router.patch(
-"/{collection_id}/documents/{document_id}",
+"/{document_id}",
     status_code=status.HTTP_200_OK,
     summary="Update document")
 async def update_document(
-    collection_id: int,
     document_id: int,
     payload: DocumentSchema.DocumentUpdate,
     session: Session = Depends(get_session),
     user: User = Depends(dependencies_auth.get_current_user),
     document_service: DocumentService = Depends(dependencies_services.get_document_service)
 ):
-    return await document_service.update_document(
-        session=session,
-        user=user,
-        collection_id=collection_id,
-        document_id=document_id,
-        data=payload
-    )
+    return await document_service.update_document(session=session, user=user, document_id=document_id, data=payload)
 
 
 @router.delete(
-"/{collection_id}/documents/{document_id}",
+"/{document_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete document")
 async def delete_document(
-    collection_id: int,
     document_id: int,
     session: Session = Depends(get_session),
     user: User = Depends(dependencies_auth.get_current_user),
     document_service: DocumentService = Depends(dependencies_services.get_document_service)
 ):
-    return await document_service.delete_document(
-        session=session,
-        user=user,
-        collection_id=collection_id,
-        document_id=document_id
-    )
+    return await document_service.delete_document(session=session, user=user, document_id=document_id)

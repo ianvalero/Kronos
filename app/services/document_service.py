@@ -52,36 +52,9 @@ class DocumentService:
         ]
         return documents_read, total
 
-    async def get_document(
-        self,
-        session: Session,
-        user: User,
-        collection_id: int,
-        document_id: int
-    ) -> DocumentSchema.DocumentRead:
-        document_db = await self.__fetch_document(
-            session=session,
-            user=user,
-            collection_id=collection_id,
-            document_id=document_id
-        )
-
+    async def get_document(self, session: Session, user: User, document_id: int) -> DocumentSchema.DocumentRead:
+        document_db = await self.__fetch_document(session=session, user=user, document_id=document_id)
         return DocumentSchema.DocumentRead.model_validate(document_db)
-
-    async def get_document_by_id(self, session: Session, user: User, document_id: int) -> DocumentSchema.DocumentRead:
-        document_db = self.document_repository.get_document(session=session, document_id=document_id)
-
-        if not document_db:
-            raise DocumentNotFoundError(f"Document {document_id} not found")
-
-        await self.collection_service.check_access(
-            session=session,
-            user=user,
-            collection_id=document_db.collection_id
-        )
-
-        return DocumentSchema.DocumentRead.model_validate(document_db)
-
 
     async def add_document(
         self,
@@ -112,16 +85,10 @@ class DocumentService:
         self,
         session: Session,
         user: User,
-        collection_id: int,
         document_id: int,
         data: DocumentSchema.DocumentUpdate
     ) -> DocumentSchema.DocumentRead:
-        document_db = await self.__fetch_document(
-            session=session,
-            user=user,
-            collection_id=collection_id,
-            document_id=document_id
-        )
+        document_db = await self.__fetch_document(session=session, user=user, document_id=document_id)
 
         for field, value in data.model_dump(exclude_unset=True).items():
             setattr(document_db, field, value)
@@ -134,18 +101,8 @@ class DocumentService:
         self.logger.info(f"Document {document_db.id} updated")
         return DocumentSchema.DocumentRead.model_validate(document_db)
 
-    async def delete_document(self,
-        session: Session,
-        user: User,
-        collection_id: int,
-        document_id: int
-    ):
-        document_db = await self.__fetch_document(
-            session=session,
-            user=user,
-            collection_id=collection_id,
-            document_id=document_id
-        )
+    async def delete_document(self, session: Session, user: User, document_id: int) -> bool:
+        document_db = await self.__fetch_document(session=session, user=user, document_id=document_id)
         document_db.deleted_by = user.username
 
         self.document_repository.delete_document(session=session, document=document_db)
@@ -166,18 +123,19 @@ class DocumentService:
             self.logger.exception(f"Error deleting document {document_id} from Qdrant")
             raise QdrantOperationError(f"Error deleting document {document_id} from Qdrant") from err
 
-    async def __fetch_document(self, session: Session, user: User, collection_id: int, document_id: int) -> DocumentDB:
-        await self.collection_service.check_access(
-            session=session,
-            user=user,
-            collection_id=collection_id
-        )
+    async def __fetch_document(self, session: Session, user: User, document_id: int) -> DocumentDB:
         document_db = self.document_repository.get_document(
             session=session,
             document_id=document_id
         )
 
-        if not document_db or document_db.collection_id != collection_id:
-            raise DocumentNotFoundError(f"Document {document_id} not found in collection {collection_id}")
+        if not document_db:
+            raise DocumentNotFoundError(f"Document {document_id} not found")
+
+        await self.collection_service.check_access(
+            session=session,
+            user=user,
+            collection_id=document_db.collection_id
+        )
 
         return document_db
