@@ -1,16 +1,20 @@
 from pydantic import BaseModel, Field, ConfigDict
 from datetime import datetime
 
-from app.enums import CollectionDistance
+from app.enums import CollectionDistance, CollectionSortField, SortDirection
 
 
 class CollectionQueryParams(BaseModel):
     gulax_name: str | None = None
     description: str | None = None
-    roles: list[str] = []
+    roles: list[str] = Field(default_factory=list)
     created_by: str | None = None
     created_at_from: datetime | None = None
     created_at_to: datetime | None = None
+
+    sort_by: CollectionSortField = CollectionSortField.ID
+    sort_order: SortDirection = SortDirection.ASC
+
     offset: int = Field(default=0, ge=0)
     limit: int = Field(default=20, ge=1, le=100)
 

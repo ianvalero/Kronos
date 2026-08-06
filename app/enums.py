@@ -1,4 +1,4 @@
-from enum import Enum
+from enum import Enum, StrEnum
 
 
 class CollectionDistance(str, Enum):
@@ -6,9 +6,34 @@ class CollectionDistance(str, Enum):
     EUCLID = "Euclid"
     DOT = "Dot"
 
+
 class DocumentVersionStatus(str, Enum):
     PENDING = "PENDING"
     PROCESSING = "PROCESSING"
     ACTIVE = "ACTIVE"
     FAILED = "FAILED"
     ARCHIVED = "ARCHIVED"
+
+
+class SortDirection(str, Enum):
+    ASC = "asc"
+    DESC = "desc"
+
+
+class CollectionSortField(StrEnum):
+    ID = "id"
+    GULAX_NAME = "gulax_name"
+    DESCRIPTION = "description"
+    ROLES = "roles"
+    CREATED_AT = "created_at"
+    CREATED_BY = "created_by"
+
+
+class DocumentSortField(StrEnum):
+    ID = "id"
+    COLLECTION_ID = "collection_id"
+    COLLECTION_GULAX_NAME = "collection_gulax_name"
+    DESCRIPTION = "description"
+    ROLES = "roles"
+    CREATED_AT = "created_at"
+    CREATED_BY = "created_by"

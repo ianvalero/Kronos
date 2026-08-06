@@ -4,16 +4,21 @@ from pydantic import ConfigDict, BaseModel, Field
 
 from app.schemas.document_version import DocumentVersionRead
 from app.schemas.collection import CollectionRead
+from app.enums import DocumentSortField, SortDirection
 
 
 class DocumentQueryParams(BaseModel):
     collection_id: int | None = Field(default=None, gt=0)
     description: str | None = None
-    roles: list[str] = []
+    roles: list[str] = Field(default_factory=list)
     created_by: str | None = None
     created_at_from: datetime | None = None
     created_at_to: datetime | None = None
     include_deleted: bool = False
+
+    sort_by: DocumentSortField = DocumentSortField.ID
+    sort_order: SortDirection = SortDirection.ASC
+
     offset: int = Field(default=0, ge=0)
     limit: int = Field(default=20, ge=1, le=100)
 

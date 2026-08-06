@@ -24,13 +24,7 @@ async def get_documents(
     user: User = Depends(dependencies_auth.get_current_user),
     document_service: DocumentService = Depends(dependencies_services.get_document_service)
 ):
-    items, total = await document_service.get_documents(
-        session=session,
-        user=user,
-        filters=params,
-        offset=params.offset,
-        limit=params.limit
-    )
+    items, total = await document_service.get_documents(session=session, user=user, params=params,)
     pagination = Pagination(
         offset=params.offset,
         limit=params.limit,

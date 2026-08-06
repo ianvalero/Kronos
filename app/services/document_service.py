@@ -22,17 +22,15 @@ class DocumentService:
         self,
         session: Session,
         user: User,
-        filters: DocumentSchema.DocumentQueryParams | None = None,
-        offset: int = 0,
-        limit: int = 100
+        params: DocumentSchema.DocumentQueryParams
     ) -> tuple[list[DocumentSchema.DocumentRead], int]:
-        if filters and filters.collection_id:
+        if params.collection_id:
             await self.collection_service.check_access(
                 session=session,
                 user=user,
-                collection_id=filters.collection_id
+                collection_id=params.collection_id
             )
-            collection_ids = [filters.collection_id]
+            collection_ids = [params.collection_id]
         else:
             collection_ids = await self.collection_service.get_collection_ids(session=session, user=user)
             if not collection_ids:
@@ -41,9 +39,7 @@ class DocumentService:
         documents_db, total = self.document_repository.get_documents(
             session=session,
             collection_ids=collection_ids,
-            offset=offset,
-            limit=limit,
-            filters=filters
+            params=params,
         )
 
         documents_read = [

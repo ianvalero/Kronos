@@ -22,13 +22,7 @@ async def get_collections(
     user: User = Depends(dependencies_auth.get_current_user),
     collection_service: CollectionService = Depends(dependencies_services.get_collection_service)
 ):
-    items, total = await collection_service.get_collections(
-        session=session,
-        user=user,
-        filters=params,
-        offset=params.offset,
-        limit=params.limit
-    )
+    items, total = await collection_service.get_collections(session=session, user=user, params=params)
     pagination = Pagination(
         offset=params.offset,
         limit=params.limit,

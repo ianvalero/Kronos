@@ -7,21 +7,33 @@ from app.models.collection import CollectionDB
 from app.models.document import DocumentDB
 from app.models.document_version import DocumentVersionDB
 from app.schemas.document import DocumentQueryParams
-from app.enums import DocumentVersionStatus
+from app.repositories.sorting import sort_data
+from app.enums import DocumentVersionStatus, DocumentSortField
+
+
+DOCUMENT_SORT_COLUMNS = {
+    DocumentSortField.ID: DocumentDB.id,
+    DocumentSortField.COLLECTION_ID: DocumentDB.collection_id,
+    DocumentSortField.COLLECTION_GULAX_NAME: CollectionDB.gulax_name,
+    DocumentSortField.DESCRIPTION: DocumentDB.description,
+    DocumentSortField.ROLES: CollectionDB.roles,
+    DocumentSortField.CREATED_AT: DocumentDB.created_at,
+    DocumentSortField.CREATED_BY: DocumentDB.created_by
+}
 
 class DocumentRepository:
     def get_documents(
         self,
         session: Session,
         collection_ids: list[int],
-        offset: int = 0,
-        limit: int = 100,
-        filters: DocumentQueryParams | None = None,
+        params: DocumentQueryParams,
     ) -> tuple[list[DocumentDB], int]:
-        where_conditions = [DocumentDB.collection_id.in_(collection_ids)]
-        where_conditions += self.__generate_filters(filters)
+        where_conditions = [
+            DocumentDB.collection_id.in_(collection_ids),
+            *self.__generate_filters(filters=params),
+        ]
 
-        documents = (
+        documents_statement = (
             select(DocumentDB)
             .join(CollectionDB, DocumentDB.collection_id == CollectionDB.id)
             .where(*where_conditions)
@@ -29,20 +41,24 @@ class DocumentRepository:
                 selectinload(DocumentDB.documents_versions.and_(DocumentVersionDB.status == DocumentVersionStatus.ACTIVE)),
                 contains_eager(DocumentDB.collection)
             )
-            .order_by(DocumentDB.id)
-            .offset(offset)
-            .limit(limit)
         )
+        documents_statement = sort_data(
+            statement=documents_statement,
+            sort_column=DOCUMENT_SORT_COLUMNS[params.sort_by],
+            direction=params.sort_order,
+            tie_breaker=DocumentDB.id,
+        )
+        documents_statement = documents_statement.offset(params.offset).limit(params.limit)
 
-        total = (
+        total_statement = (
             select(func.count())
             .select_from(DocumentDB)
             .join(CollectionDB, DocumentDB.collection_id == CollectionDB.id)
             .where(*where_conditions)
         )
 
-        documents = cast(list[DocumentDB], session.exec(documents).all())
-        total = cast(int, session.exec(total).one())
+        documents = cast(list[DocumentDB], session.exec(documents_statement).all())
+        total = cast(int, session.exec(total_statement).one())
         return documents, total
 
     def get_document(self, session: Session, document_id: int) -> DocumentDB | None:

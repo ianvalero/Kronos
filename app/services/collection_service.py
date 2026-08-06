@@ -23,17 +23,13 @@ class CollectionService:
         self,
         session: Session,
         user: User,
-        filters: CollectionSchema.CollectionQueryParams | None = None,
-        offset: int = 0,
-        limit: int = 100
+        params: CollectionSchema.CollectionQueryParams
     ) -> tuple[list[CollectionSchema.CollectionReadDetails], int]:
         collections_db, total = self.collection_repository.get_collections(
             session=session,
             roles=user.roles,
-            is_admin=user.is_admin,
-            offset=offset,
-            limit=limit,
-            filters=filters
+            params=params,
+            is_admin=user.is_admin
         )
 
         collections_qdrant = await self.qdrant.get_collections(

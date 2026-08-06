@@ -4,46 +4,59 @@ from sqlmodel import Session, select, func
 
 from app.models.collection import CollectionDB
 from app.schemas.collection import CollectionQueryParams
+from app.repositories.sorting import sort_data
+from app.enums import CollectionSortField
+
+
+COLLECTION_SORT_COLUMNS = {
+    CollectionSortField.ID: CollectionDB.id,
+    CollectionSortField.DESCRIPTION: CollectionDB.description,
+    CollectionSortField.GULAX_NAME: CollectionDB.gulax_name,
+    CollectionSortField.ROLES: CollectionDB.roles,
+    CollectionSortField.CREATED_AT: CollectionDB.created_at,
+    CollectionSortField.CREATED_BY: CollectionDB.created_by,
+}
 
 class CollectionRepository:
     def get_collections(
         self,
         session: Session,
         roles: list[str],
+        params: CollectionQueryParams,
         is_admin: bool = False,
-        offset: int = 0,
-        limit: int = 100,
-        filters: CollectionQueryParams | None = None,
     ) -> tuple[list[CollectionDB], int]:
         if not is_admin and not roles:
             return [], 0
 
-        where_conditions = self.__base_conditions(roles, is_admin)
-        where_conditions += self.__generate_filters(filters)
+        where_conditions = [
+            *self.__base_conditions(roles=roles, is_admin=is_admin),
+            *self.__generate_filters(filters=params)
+        ]
 
-        collections = (
-            select(CollectionDB)
-            .where(*where_conditions)
-            .order_by(CollectionDB.id)
-            .offset(offset)
-            .limit(limit)
+        collections_statement = select(CollectionDB).where(*where_conditions)
+        collections_statement = sort_data(
+            statement=collections_statement,
+            sort_column=COLLECTION_SORT_COLUMNS[params.sort_by],
+            direction=params.sort_order,
+            tie_breaker=CollectionDB.id,
         )
+        collections_statement= collections_statement.offset(params.offset).limit(params.limit)
 
-        total = (
+        total_statement = (
             select(func.count())
             .select_from(CollectionDB)
             .where(*where_conditions)
         )
 
-        collections = cast(list[CollectionDB], session.exec(collections).all())
-        total = cast(int, session.exec(total).one())
+        collections = cast(list[CollectionDB], session.exec(collections_statement).all())
+        total = cast(int, session.exec(total_statement).one())
         return collections, total
 
     def get_collection_ids(self, session: Session, roles: list[str], is_admin: bool = False) -> list[int]:
         if not is_admin and not roles:
             return []
 
-        where_conditions = self.__base_conditions(roles, is_admin)
+        where_conditions = [*self.__base_conditions(roles=roles, is_admin=is_admin),]
 
         statement = select(CollectionDB.id).where(*where_conditions)
         return list(session.exec(statement).all())
@@ -98,3 +111,5 @@ class CollectionRepository:
                 where_conditions.append(CollectionDB.created_at <= filters.created_at_to)
 
         return where_conditions
+
+    # def __generate_sort(self)
