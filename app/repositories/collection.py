@@ -3,7 +3,7 @@ from datetime import datetime
 from sqlmodel import Session, select, func
 
 from app.models.collection import CollectionDB
-from app.schemas.collection import CollectionFilters
+from app.schemas.collection import CollectionQueryParams
 
 class CollectionRepository:
     def get_collections(
@@ -13,7 +13,7 @@ class CollectionRepository:
         is_admin: bool = False,
         offset: int = 0,
         limit: int = 100,
-        filters: CollectionFilters | None = None,
+        filters: CollectionQueryParams | None = None,
     ) -> tuple[list[CollectionDB], int]:
         if not is_admin and not roles:
             return [], 0
@@ -80,12 +80,16 @@ class CollectionRepository:
             where_conditions.append(CollectionDB.roles.overlap(roles))
         return where_conditions
 
-    def __generate_filters(self, filters: CollectionFilters | None = None) -> list:
+    def __generate_filters(self, filters: CollectionQueryParams | None = None) -> list:
         where_conditions = []
 
         if filters:
+            if filters.gulax_name:
+                where_conditions.append(CollectionDB.gulax_name.ilike(f"%{filters.gulax_name}%"))
             if filters.description:
                 where_conditions.append(CollectionDB.description.ilike(f"%{filters.description}%"))
+            if filters.roles:
+                where_conditions.append(CollectionDB.roles.overlap(filters.roles))
             if filters.created_by:
                 where_conditions.append(CollectionDB.created_by == filters.created_by)
             if filters.created_at_from:

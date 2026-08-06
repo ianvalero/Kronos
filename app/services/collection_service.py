@@ -23,7 +23,7 @@ class CollectionService:
         self,
         session: Session,
         user: User,
-        filters: CollectionSchema.CollectionFilters | None = None,
+        filters: CollectionSchema.CollectionQueryParams | None = None,
         offset: int = 0,
         limit: int = 100
     ) -> tuple[list[CollectionSchema.CollectionReadDetails], int]:

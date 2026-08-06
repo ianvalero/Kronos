@@ -6,13 +6,16 @@ from app.schemas.document_version import DocumentVersionRead
 from app.schemas.collection import CollectionRead
 
 
-class DocumentFilters(BaseModel):
+class DocumentQueryParams(BaseModel):
     collection_id: int | None = Field(default=None, gt=0)
     description: str | None = None
+    roles: list[str] = []
     created_by: str | None = None
     created_at_from: datetime | None = None
     created_at_to: datetime | None = None
     include_deleted: bool = False
+    offset: int = Field(default=0, ge=0)
+    limit: int = Field(default=20, ge=1, le=100)
 
 class DocumentRead(SQLModel):
     id: int

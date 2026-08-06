@@ -1,3 +1,4 @@
+from typing import Annotated
 from fastapi import APIRouter, status, Depends, Query
 from sqlmodel import Session
 
@@ -16,9 +17,7 @@ router = APIRouter(prefix="/api/collections", tags=["Collections"])
     response_model=PaginatedResponse[CollectionSchema.CollectionReadDetails],
     summary="Get all collection")
 async def get_collections(
-    offset: int = Query(default=0, ge=0),
-    limit: int = Query(default=20, ge=1, le=100),
-    filters: CollectionSchema.CollectionFilters = Depends(),
+    params: Annotated[CollectionSchema.CollectionQueryParams, Query()],
     session: Session = Depends(get_session),
     user: User = Depends(dependencies_auth.get_current_user),
     collection_service: CollectionService = Depends(dependencies_services.get_collection_service)
@@ -26,16 +25,16 @@ async def get_collections(
     items, total = await collection_service.get_collections(
         session=session,
         user=user,
-        filters=filters,
-        offset=offset,
-        limit=limit
+        filters=params,
+        offset=params.offset,
+        limit=params.limit
     )
     pagination = Pagination(
-        offset=offset,
-        limit=limit,
+        offset=params.offset,
+        limit=params.limit,
         total=total,
-        has_next=offset + limit < total,
-        has_prev=offset > 0
+        has_next=params.offset + params.limit < total,
+        has_prev=params.offset > 0
     )
 
     return PaginatedResponse[CollectionSchema.CollectionReadDetails](

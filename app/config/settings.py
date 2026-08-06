@@ -1,10 +1,9 @@
 from pathlib import Path
-from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field, model_validator
 
-from app.schemas.collection import Distance
+from app.enums import CollectionDistance
 
 
 class PostgresSettings(BaseSettings):
@@ -61,13 +60,13 @@ class CelerySettings(BaseSettings):
 
 class QdrantSettings(BaseSettings):
     url: str
-    size: int                               # Número de dimensiones de cada vector - ¡Tiene que ser lo que indique el modelo de embbeding!
-    distance: Distance = Distance.COSINE    # Define como se calcula la similitud entre vectores
-    shard_number: int = 1                   # Divide la colección en particiones
-    replication_factor: int = 1             # Duplica datos para alta disponibilidad
-    on_disk_payload: bool = True            # Guardar metadata en disco en lugar de RAM
-    node_conexions_number: int = 16         # Número de conexiones por nodo
-    ef_construct: int = 200                 # Calidad del índice al construirlo
+    size: int                                                   # Número de dimensiones de cada vector - ¡Tiene que ser lo que indique el modelo de embbeding!
+    distance: CollectionDistance = CollectionDistance.COSINE    # Define como se calcula la similitud entre vectores
+    shard_number: int = 1                                       # Divide la colección en particiones
+    replication_factor: int = 1                                 # Duplica datos para alta disponibilidad
+    on_disk_payload: bool = True                                # Guardar metadata en disco en lugar de RAM
+    node_conexions_number: int = 16                             # Número de conexiones por nodo
+    ef_construct: int = 200                                     # Calidad del índice al construirlo
 
     model_config = SettingsConfigDict(
         env_prefix="QDRANT_",

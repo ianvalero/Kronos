@@ -22,7 +22,7 @@ class DocumentService:
         self,
         session: Session,
         user: User,
-        filters: DocumentSchema.DocumentFilters | None = None,
+        filters: DocumentSchema.DocumentQueryParams | None = None,
         offset: int = 0,
         limit: int = 100
     ) -> tuple[list[DocumentSchema.DocumentRead], int]:

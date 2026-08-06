@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, status, Query
+from typing import Annotated
 from sqlmodel import Session
 
 from app.database import get_session
@@ -18,9 +19,7 @@ create_document_router = APIRouter(prefix="/api/collections", tags=["Documents"]
     response_model=PaginatedResponse[DocumentSchema.DocumentRead],
     summary="Get all documents")
 async def get_documents(
-    offset: int = Query(default=0, ge=0),
-    limit: int = Query(default=20, ge=1, le=100),
-    filters: DocumentSchema.DocumentFilters = Depends(),
+    params: Annotated[DocumentSchema.DocumentQueryParams, Query()],
     session: Session = Depends(get_session),
     user: User = Depends(dependencies_auth.get_current_user),
     document_service: DocumentService = Depends(dependencies_services.get_document_service)
@@ -28,16 +27,16 @@ async def get_documents(
     items, total = await document_service.get_documents(
         session=session,
         user=user,
-        filters=filters,
-        offset=offset,
-        limit=limit
+        filters=params,
+        offset=params.offset,
+        limit=params.limit
     )
     pagination = Pagination(
-        offset=offset,
-        limit=limit,
+        offset=params.offset,
+        limit=params.limit,
         total=total,
-        has_next=offset + limit < total,
-        has_prev=offset > 0
+        has_next=params.offset + params.limit < total,
+        has_prev=params.offset > 0
     )
 
     return PaginatedResponse[DocumentSchema.DocumentRead](

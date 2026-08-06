@@ -1,19 +1,18 @@
 from pydantic import BaseModel, Field, ConfigDict
 from datetime import datetime
-from enum import Enum
+
+from app.enums import CollectionDistance
 
 
-class Distance(str, Enum):
-    COSINE = "Cosine"
-    EUCLID = "Euclid"
-    DOT = "Dot"
-
-
-class CollectionFilters(BaseModel):
+class CollectionQueryParams(BaseModel):
+    gulax_name: str | None = None
     description: str | None = None
+    roles: list[str] = []
     created_by: str | None = None
     created_at_from: datetime | None = None
     created_at_to: datetime | None = None
+    offset: int = Field(default=0, ge=0)
+    limit: int = Field(default=20, ge=1, le=100)
 
 
 class HNSWConfig(BaseModel):
@@ -36,7 +35,10 @@ class CollectionUpdate(BaseModel):
 class CollectionCreateQdrant(BaseModel):
     name: str = Field(min_length=1)
     size: int = Field(gt=0, description="Number of dimensions for each vector")
-    distance: Distance = Field(default=Distance.COSINE, description="Distance metric used to calculate similarity between vectors")
+    distance: CollectionDistance = Field(
+        default=CollectionDistance.COSINE,
+        description="Distance metric used to calculate similarity between vectors"
+    )
     shard_number: int | None = Field(default=1, description="Number of shards used to partition the collection")
     replication_factor: int | None = Field(default=1, description="Number of replicas for high availability")
     on_disk_payload: bool | None = Field(default=True,description="Store payload metadata on disk instead of in RAM")
@@ -47,7 +49,7 @@ class CollectionCreateQdrant(BaseModel):
 
 class CollectionVectors(BaseModel):
     dimension: int | dict[str, int]
-    distance: Distance | dict[str, Distance]
+    distance: CollectionDistance | dict[str, CollectionDistance]
 
 
 class CollectionRead(BaseModel):
