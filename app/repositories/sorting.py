@@ -16,7 +16,7 @@ def sort_data(
     order_expression = getattr(sort_column, order)().nulls_last()
     statement = statement.order_by(order_expression)
 
-    if tie_breaker is not None and not sort_column.compare(tie_breaker):
+    if tie_breaker is not None and sort_column is not tie_breaker:
         statement = statement.order_by(getattr(tie_breaker, order)())
 
     return statement

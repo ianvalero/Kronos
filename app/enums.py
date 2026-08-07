@@ -1,13 +1,13 @@
-from enum import Enum, StrEnum
+from enum import StrEnum
 
 
-class CollectionDistance(str, Enum):
+class CollectionDistance(StrEnum):
     COSINE = "Cosine"
     EUCLID = "Euclid"
     DOT = "Dot"
 
 
-class DocumentVersionStatus(str, Enum):
+class DocumentVersionStatus(StrEnum):
     PENDING = "PENDING"
     PROCESSING = "PROCESSING"
     ACTIVE = "ACTIVE"
@@ -15,7 +15,7 @@ class DocumentVersionStatus(str, Enum):
     ARCHIVED = "ARCHIVED"
 
 
-class SortDirection(str, Enum):
+class SortDirection(StrEnum):
     ASC = "asc"
     DESC = "desc"
 
@@ -34,6 +34,6 @@ class DocumentSortField(StrEnum):
     COLLECTION_ID = "collection_id"
     COLLECTION_GULAX_NAME = "collection_gulax_name"
     DESCRIPTION = "description"
-    ROLES = "roles"
+    COLLECTION_ROLES = "collection_roles"
     CREATED_AT = "created_at"
     CREATED_BY = "created_by"

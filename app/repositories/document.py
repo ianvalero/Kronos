@@ -16,7 +16,7 @@ DOCUMENT_SORT_COLUMNS = {
     DocumentSortField.COLLECTION_ID: DocumentDB.collection_id,
     DocumentSortField.COLLECTION_GULAX_NAME: CollectionDB.gulax_name,
     DocumentSortField.DESCRIPTION: DocumentDB.description,
-    DocumentSortField.ROLES: CollectionDB.roles,
+    DocumentSortField.COLLECTION_ROLES: CollectionDB.roles,
     DocumentSortField.CREATED_AT: DocumentDB.created_at,
     DocumentSortField.CREATED_BY: DocumentDB.created_by
 }

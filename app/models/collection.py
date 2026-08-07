@@ -13,11 +13,11 @@ class CollectionDB(SQLModel, table=True):
 
     id: int | None = Field(default=None, primary_key=True)
     qdrant_name: str = Field(unique=True, index=True)
-    gulax_name: str
-    description: str | None = Field(default=None)
+    gulax_name: str = Field(index=True)
+    description: str | None = Field(default=None, index=True)
     roles: list[str] = Field(sa_column=Column(ARRAY(String)))
-    created_at: datetime = Field(default_factory=datetime.now)
-    created_by: str
+    created_at: datetime = Field(default_factory=datetime.now, index=True)
+    created_by: str = Field(index=True)
     updated_at: datetime | None = None
     updated_by: str | None = None
     deleted_at: datetime | None = None

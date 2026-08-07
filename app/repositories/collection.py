@@ -111,5 +111,3 @@ class CollectionRepository:
                 where_conditions.append(CollectionDB.created_at <= filters.created_at_to)
 
         return where_conditions
-
-    # def __generate_sort(self)

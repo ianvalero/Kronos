@@ -11,9 +11,9 @@ class DocumentDB(SQLModel, table=True):
 
     id: int | None = Field(default=None, primary_key=True)
     collection_id: int = Field(foreign_key="collections.id", index=True)
-    description: str
-    created_at: datetime = Field(default_factory=datetime.now)
-    created_by: str
+    description: str = Field(index=True)
+    created_at: datetime = Field(default_factory=datetime.now, index=True)
+    created_by: str = Field(index=True)
     updated_at: datetime | None = None
     updated_by: str | None = None
     deleted_at: datetime | None = None

@@ -1,10 +1,11 @@
 from pydantic import BaseModel, Field, ConfigDict
 from datetime import datetime
 
+from app.schemas.pagination import PaginationParams
 from app.enums import CollectionDistance, CollectionSortField, SortDirection
 
 
-class CollectionQueryParams(BaseModel):
+class CollectionQueryParams(PaginationParams):
     gulax_name: str | None = None
     description: str | None = None
     roles: list[str] = Field(default_factory=list)
@@ -14,9 +15,6 @@ class CollectionQueryParams(BaseModel):
 
     sort_by: CollectionSortField = CollectionSortField.ID
     sort_order: SortDirection = SortDirection.ASC
-
-    offset: int = Field(default=0, ge=0)
-    limit: int = Field(default=20, ge=1, le=100)
 
 
 class HNSWConfig(BaseModel):
