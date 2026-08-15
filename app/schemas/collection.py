@@ -71,8 +71,7 @@ class CollectionReadDetails(BaseModel):
     description: str | None
     roles: list[str]
     status: str
-    points_count: int
-    vectors: CollectionVectors
+    vectors: CollectionVectors | None
     created_at: datetime
     created_by: str
     updated_at: datetime | None
