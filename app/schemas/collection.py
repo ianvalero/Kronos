@@ -61,22 +61,14 @@ class CollectionRead(BaseModel):
     description: str | None
     roles: list[str]
     created_at: datetime
+    created_by: str
 
     model_config = ConfigDict(from_attributes=True)
 
-class CollectionReadDetails(BaseModel):
-    id: int
-    qdrant_name: str
-    gulax_name: str
-    description: str | None
-    roles: list[str]
+class CollectionReadDetails(CollectionRead):
     status: str
     vectors: CollectionVectors | None
-    created_at: datetime
-    created_by: str
     updated_at: datetime | None
     updated_by: str | None
     deleted_at: datetime | None
     deleted_by: str | None
-
-    model_config = ConfigDict(from_attributes=True)
